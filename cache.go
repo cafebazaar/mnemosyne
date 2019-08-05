@@ -18,6 +18,7 @@ type Cache struct {
 	amnesiaChance      int
 	compressionEnabled bool
 	TTL                time.Duration
+	ctx                *context.Context
 }
 
 func NewCacheRedis(addr string, db int, TTL time.Duration, amnesiaChance int, compressionEnabled bool) *Cache {
@@ -36,8 +37,10 @@ func NewCacheRedis(addr string, db int, TTL time.Duration, amnesiaChance int, co
 		amnesiaChance:      amnesiaChance,
 		compressionEnabled: compressionEnabled,
 		TTL:                TTL,
+		ctx:				context.Background(),
 	}
 }
+
 
 func NewCacheClusterRedis(masterAddr string, slaveAddrs []string, db int, TTL time.Duration, amnesiaChance int, compressionEnabled bool) *Cache {
 	slaveClients := make([]*redis.Client, len(slaveAddrs))
@@ -65,6 +68,7 @@ func NewCacheClusterRedis(masterAddr string, slaveAddrs []string, db int, TTL ti
 		amnesiaChance:      amnesiaChance,
 		compressionEnabled: compressionEnabled,
 		TTL:                TTL,
+		ctx:				context.Background(),
 	}
 }
 
@@ -86,12 +90,26 @@ func NewCacheInMem(maxMem int, TTL time.Duration, amnesiaChance int, compression
 		amnesiaChance:      amnesiaChance,
 		compressionEnabled: compressionEnabled,
 		TTL:                TTL,
+		ctx:				context.Background(),
 	}
 }
 
-func (cr *Cache) Get(ctx context.Context, key string) (interface{}, error) {
+func (cr *Cache) WithContext(ctx context.Context) *Cache {
+	return &Cache{
+		baseRedisClient:    cr.baseRedisClient,
+		slaveRedisClients:  cr.slaveRedisClients,
+		inMemCache:			cr.inMemCache,
+		amnesiaChance:      cr.amnesiaChance,
+		compressionEnabled: cr.compressionEnabled,
+		TTL:                cr.TTL,
+		ctx:				ctx,
+	}
+}
+
+
+func (cr *Cache) Get(key string) (interface{}, error) {
 	if cr.amnesiaChance > rand.Intn(100) {
-		return nil, nil
+		return nil, Errors.New("Had Amnesia")
 	}
 	var rawBytes []byte
 	var err error
@@ -99,7 +117,7 @@ func (cr *Cache) Get(ctx context.Context, key string) (interface{}, error) {
 		rawBytes, err = cr.inMemCache.Get(key)
 	} else {
 		var strValue string
-		client := cr.pickClient().WithContext(ctx)
+		client := cr.pickClient().WithContext(cr.ctx)
 		strValue, err = client.Get(key).Result()
 		rawBytes = []byte(strValue)
 	}
@@ -117,9 +135,9 @@ func (cr *Cache) Get(ctx context.Context, key string) (interface{}, error) {
 	return finalObject, nil
 }
 
-func (cr *Cache) Set(ctx context.Context, key string, value interface{}) error {
+func (cr *Cache) Set(key string, value interface{}) error {
 	if cr.amnesiaChance == 100 {
-		return nil
+		return Errors.New("Had Amnesia")
 	}
 	rawData, err := msgpack.Marshal(value)
 	if err != nil {
@@ -135,13 +153,16 @@ func (cr *Cache) Set(ctx context.Context, key string, value interface{}) error {
 		return cr.inMemCache.Set(key, finalData)
 	}
 	// else if Redis
-	client := cr.baseRedisClient.WithContext(ctx)
+	client := cr.baseRedisClient.WithContext(cr.ctx)
 	err = client.SetNX(key, finalData, cr.TTL).Err()
 	return err
 }
 
-func (cr *Cache) GetTTL(ctx context.Context, key string) time.Duration {
-	client := cr.pickClient().WithContext(ctx)
+func (cr *Cache) GetTTL(key string) time.Duration {
+	if cr.inMemCache !=nil{
+		return time.Second * 0
+	}
+	client := cr.pickClient().WithContext(cr.ctx)
 	res, err := client.TTL(key).Result()
 	if err != nil {
 		return time.Second * 0
