@@ -9,13 +9,34 @@ import (
 )
 
 type Mnemosyne struct {
+	childs	[]*MnemosyneInstance
+}
+
+
+type MnemosyneInstance struct {
 	name       string
 	cachLayers []*Cache
 	watcher    *epimetheus.Epimetheus
 	ctx        *context.Context
 }
 
-func NewMnemosyne(name string, config *viper.Viper, watcher *epimetheus.Epimetheus) *Mnemosyne {
+func NewMnemosyne(config *viper.Viper, watcher *epimetheus.Epimetheus) *Mnemosyne{
+	cacheConfigs := viper.GetStringMap("cache")
+	caches := make([]*Mnemosyne, len(cacheConfigs))
+	i := 0
+	for cacheName :=range cacheConfigs{
+		caches[i] = NewMnemosyneInstance(cacheName, config, watcher)
+	}
+	return &Mnemosyne{
+		childs: caches,
+	}
+}
+
+func (m *Mnemosyn) Select(cacheName string) *MnemosyneInstance{
+	return m.childs[cacheName]
+}
+
+func NewMnemosyneInstance(name string, config *viper.Viper, watcher *epimetheus.Epimetheus) *MnemosyneInstance {
 	if watcher == nil {
 		watcher = epimetheus.NewEpimetheus(config)
 	}
@@ -48,7 +69,7 @@ func NewMnemosyne(name string, config *viper.Viper, watcher *epimetheus.Epimethe
 			)
 		}
 	}
-	return &Mnemosyne{
+	return &MnemosyneInstance{
 		name:       name,
 		cachLayers: cachLayers,
 		watcher:    watcher,
@@ -56,8 +77,8 @@ func NewMnemosyne(name string, config *viper.Viper, watcher *epimetheus.Epimethe
 	}
 }
 
-func (mn *Mnemosyne) WithContext(ctx *context.Context) *Mnemosyne{
-	return &Mnemosyne{
+func (mn *MnemosyneInstance) WithContext(ctx *context.Context) *MnemosyneInstance{
+	return &MnemosyneInstance{
 		name:       mn.name,
 		cachLayers: mn.cachLayers,
 		watcher:    mn.watcher,
@@ -65,29 +86,29 @@ func (mn *Mnemosyne) WithContext(ctx *context.Context) *Mnemosyne{
 	}
 }
 
-func (mn *Mnemosyne) Get(key string) interface{} {
+func (mn *MnemosyneInstance) Get(key string) (interface{}, error){
 	cacheErrors := make([]error, len(mn.cacheLayers))
 	var result interface{}
 	for i, layer := range mn.cachLayers{
 		result, cacheErrors[i] = layer.Get(key)
 		if err==nil	{
 			go mn.watcher.CacheRate.Inc(mn.name, Sprintf("layer%d", i))
-			return result
+			return result, nil
 		}
 	}
 	go mn.watcher.CacheRate.Inc(mn.name, "miss")
-	return nil
+	return nil, Errors.New("Miss") // FIXME: better Error combination
 }
 
-func (mn *Mnemosyne) Set(key string, value interface{}) error {
+func (mn *MnemosyneInstance) Set(key string, value interface{}) error {
 	cacheErrors := make([]error, len(mn.cacheLayers))
 	for i, layer := range mn.cachLayers{
 		cacheErrors[i] = layer.Set(key, value)
 	}
-	return nil
+	return nil // FIXME: better Error combination
 }
 
-func (mn *Mnemosyne) TTL(key string) (int, time.Duration) {
+func (mn *MnemosyneInstance) TTL(key string) (int, time.Duration) {
 	for i, layer := range mn.cachLayers{
 		dur := layer.GetTTL(key)
 		if dur > 0 {
