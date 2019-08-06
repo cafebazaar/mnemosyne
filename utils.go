@@ -11,7 +11,7 @@ func MakeKey(keys ...string) string {
 	return strings.Join(keys, ";")
 }
 
-// func Compress_lz4(input []byte) []byte {
+// func CompressLz4(input []byte) []byte {
 // 	var buf bytes.Buffer
 // 	w := lz4.NewWriter(&buf)
 // 	w.Write(input)
@@ -19,7 +19,7 @@ func MakeKey(keys ...string) string {
 // 	compressed := buf.Bytes()
 // 	return compressed
 // }
-// func Decompress_lz4(input []byte) []byte {
+// func DecompressLz4(input []byte) []byte {
 // 	var out bytes.Buffer
 // 	r := lz4.NewReader(bytes.NewBuffer(input))
 // 	io.Copy(&out, r)
@@ -27,7 +27,7 @@ func MakeKey(keys ...string) string {
 // 	return original
 // }
 
-func Compress_zlib(input []byte) []byte {
+func CompressZlib(input []byte) []byte {
 	var buf bytes.Buffer
 	w := zlib.NewWriter(&buf)
 	w.Write(input)
@@ -35,7 +35,7 @@ func Compress_zlib(input []byte) []byte {
 	compressed := buf.Bytes()
 	return compressed
 }
-func Decompress_zlib(input []byte) []byte {
+func DecompressZlib(input []byte) []byte {
 	var out bytes.Buffer
 	r, _ := zlib.NewReader(bytes.NewBuffer(input))
 	io.Copy(&out, r)

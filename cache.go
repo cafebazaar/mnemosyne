@@ -125,7 +125,7 @@ func (cr *Cache) Get(key string) (interface{}, error) {
 	}
 	var finalBytes []byte
 	if cr.compressionEnabled {
-		finalBytes = Decompress_zlib(rawBytes)
+		finalBytes = DecompressZlib(rawBytes)
 	} else {
 		finalBytes = rawBytes
 	}
@@ -144,7 +144,7 @@ func (cr *Cache) Set(key string, value interface{}) error {
 	}
 	var finalData []byte
 	if cr.compressionEnabled {
-		finalData = Compress_zlib(rawData)
+		finalData = CompressZlib(rawData)
 	} else {
 		finalData = rawData
 	}
