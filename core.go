@@ -82,7 +82,7 @@ func (mn *MnemosyneInstance) get(ctx context.Context, key string) (interface{}, 
 	cacheErrors := make([]error, len(mn.cacheLayers))
 	var result interface{}
 	for i, layer := range mn.cacheLayers {
-		result, cacheErrors[i] = layer.Get(key)
+		result, cacheErrors[i] = layer.WithContext(ctx).Get(key)
 		if cacheErrors[i] == nil {
 			go mn.watcher.CacheRate.Inc(mn.name, fmt.Sprintf("layer%d", i))
 			go mn.fillUpperLayers(key, result, i)
@@ -128,7 +128,7 @@ func (mn *MnemosyneInstance) Set(ctx context.Context, key string, value interfac
 	errorStrings := make([]string, len(mn.cacheLayers))
 	haveErorr := false
 	for i, layer := range mn.cacheLayers {
-		cacheErrors[i] = layer.Set(key, toCache)
+		cacheErrors[i] = layer.WithContext(ctx).Set(key, toCache)
 		if cacheErrors[i] != nil {
 			errorStrings[i] = cacheErrors[i].Error()
 			haveErorr = true
@@ -142,7 +142,7 @@ func (mn *MnemosyneInstance) Set(ctx context.Context, key string, value interfac
 
 func (mn *MnemosyneInstance) TTL(key string) (int, time.Duration) {
 	for i, layer := range mn.cacheLayers {
-		dur := layer.GetTTL(key)
+		dur := layer.TTL(key)
 		if dur > 0 {
 			return i, dur
 		}

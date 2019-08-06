@@ -18,7 +18,7 @@ type Cache struct {
 	inMemCache         *bigcache.BigCache
 	amnesiaChance      int
 	compressionEnabled bool
-	TTL                time.Duration
+	cacheTTL           time.Duration
 	ctx                context.Context
 }
 
@@ -37,7 +37,7 @@ func NewCacheRedis(addr string, db int, TTL time.Duration, amnesiaChance int, co
 		baseRedisClient:    redisClient,
 		amnesiaChance:      amnesiaChance,
 		compressionEnabled: compressionEnabled,
-		TTL:                TTL,
+		cacheTTL:           TTL,
 		ctx:                context.Background(),
 	}
 }
@@ -67,7 +67,7 @@ func NewCacheClusterRedis(masterAddr string, slaveAddrs []string, db int, TTL ti
 		slaveRedisClients:  slaveClients,
 		amnesiaChance:      amnesiaChance,
 		compressionEnabled: compressionEnabled,
-		TTL:                TTL,
+		cacheTTL:           TTL,
 		ctx:                context.Background(),
 	}
 }
@@ -89,7 +89,7 @@ func NewCacheInMem(maxMem int, TTL time.Duration, amnesiaChance int, compression
 		inMemCache:         cacheInstance,
 		amnesiaChance:      amnesiaChance,
 		compressionEnabled: compressionEnabled,
-		TTL:                TTL,
+		cacheTTL:           TTL,
 		ctx:                context.Background(),
 	}
 }
@@ -101,7 +101,7 @@ func (cr *Cache) WithContext(ctx context.Context) *Cache {
 		inMemCache:         cr.inMemCache,
 		amnesiaChance:      cr.amnesiaChance,
 		compressionEnabled: cr.compressionEnabled,
-		TTL:                cr.TTL,
+		cacheTTL:           cr.cacheTTL,
 		ctx:                ctx,
 	}
 }
@@ -151,13 +151,36 @@ func (cr *Cache) Set(key string, value interface{}) error {
 	if cr.inMemCache != nil {
 		return cr.inMemCache.Set(key, finalData)
 	}
-	// else if Redis
 	client := cr.baseRedisClient.WithContext(cr.ctx)
-	err = client.SetNX(key, finalData, cr.TTL).Err()
+	err = client.SetNX(key, finalData, cr.cacheTTL).Err()
 	return err
 }
 
-func (cr *Cache) GetTTL(key string) time.Duration {
+func (cr *Cache) Delete(ctx context.Context, key string) error {
+	if cr.amnesiaChance == 100 {
+		return errors.New("Had Amnesia")
+	}
+	if cr.inMemCache != nil {
+		return cr.inMemCache.Delete(key)
+	}
+	client := cr.baseRedisClient.WithContext(ctx)
+	err := client.Del(key).Err()
+	return err
+}
+
+func (cr *Cache) Clear(ctx context.Context) error {
+	if cr.amnesiaChance == 100 {
+		return errors.New("Had Amnesia")
+	}
+	if cr.inMemCache != nil {
+		return cr.inMemCache.Reset()
+	}
+	client := cr.baseRedisClient.WithContext(ctx)
+	err := client.FlushDB().Err()
+	return err
+}
+
+func (cr *Cache) TTL(key string) time.Duration {
 	if cr.inMemCache != nil {
 		return time.Second * 0
 	}
@@ -167,7 +190,6 @@ func (cr *Cache) GetTTL(key string) time.Duration {
 		return time.Second * 0
 	}
 	return res
-
 }
 
 func (cr *Cache) pickClient() *redis.Client {
