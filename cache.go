@@ -2,6 +2,7 @@ package mnemosyne
 
 import (
 	"context"
+	"errors"
 	"math/rand"
 	"time"
 
@@ -18,7 +19,7 @@ type Cache struct {
 	amnesiaChance      int
 	compressionEnabled bool
 	TTL                time.Duration
-	ctx                *context.Context
+	ctx                context.Context
 }
 
 func NewCacheRedis(addr string, db int, TTL time.Duration, amnesiaChance int, compressionEnabled bool) *Cache {
@@ -37,10 +38,9 @@ func NewCacheRedis(addr string, db int, TTL time.Duration, amnesiaChance int, co
 		amnesiaChance:      amnesiaChance,
 		compressionEnabled: compressionEnabled,
 		TTL:                TTL,
-		ctx:				context.Background(),
+		ctx:                context.Background(),
 	}
 }
-
 
 func NewCacheClusterRedis(masterAddr string, slaveAddrs []string, db int, TTL time.Duration, amnesiaChance int, compressionEnabled bool) *Cache {
 	slaveClients := make([]*redis.Client, len(slaveAddrs))
@@ -68,7 +68,7 @@ func NewCacheClusterRedis(masterAddr string, slaveAddrs []string, db int, TTL ti
 		amnesiaChance:      amnesiaChance,
 		compressionEnabled: compressionEnabled,
 		TTL:                TTL,
-		ctx:				context.Background(),
+		ctx:                context.Background(),
 	}
 }
 
@@ -90,7 +90,7 @@ func NewCacheInMem(maxMem int, TTL time.Duration, amnesiaChance int, compression
 		amnesiaChance:      amnesiaChance,
 		compressionEnabled: compressionEnabled,
 		TTL:                TTL,
-		ctx:				context.Background(),
+		ctx:                context.Background(),
 	}
 }
 
@@ -98,18 +98,17 @@ func (cr *Cache) WithContext(ctx context.Context) *Cache {
 	return &Cache{
 		baseRedisClient:    cr.baseRedisClient,
 		slaveRedisClients:  cr.slaveRedisClients,
-		inMemCache:			cr.inMemCache,
+		inMemCache:         cr.inMemCache,
 		amnesiaChance:      cr.amnesiaChance,
 		compressionEnabled: cr.compressionEnabled,
 		TTL:                cr.TTL,
-		ctx:				ctx,
+		ctx:                ctx,
 	}
 }
 
-
 func (cr *Cache) Get(key string) (interface{}, error) {
 	if cr.amnesiaChance > rand.Intn(100) {
-		return nil, Errors.New("Had Amnesia")
+		return nil, errors.New("Had Amnesia")
 	}
 	var rawBytes []byte
 	var err error
@@ -137,7 +136,7 @@ func (cr *Cache) Get(key string) (interface{}, error) {
 
 func (cr *Cache) Set(key string, value interface{}) error {
 	if cr.amnesiaChance == 100 {
-		return Errors.New("Had Amnesia")
+		return errors.New("Had Amnesia")
 	}
 	rawData, err := msgpack.Marshal(value)
 	if err != nil {
@@ -159,7 +158,7 @@ func (cr *Cache) Set(key string, value interface{}) error {
 }
 
 func (cr *Cache) GetTTL(key string) time.Duration {
-	if cr.inMemCache !=nil{
+	if cr.inMemCache != nil {
 		return time.Second * 0
 	}
 	client := cr.pickClient().WithContext(cr.ctx)

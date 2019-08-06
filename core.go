@@ -2,37 +2,37 @@ package mnemosyne
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"time"
 
 	"git.cafebazaar.ir/bazaar/search/octopus/pkg/epimetheus"
 	"github.com/spf13/viper"
 )
 
 type Mnemosyne struct {
-	childs	[]*MnemosyneInstance
+	childs map[string]*MnemosyneInstance
 }
-
 
 type MnemosyneInstance struct {
-	name       string
-	cachLayers []*Cache
-	watcher    *epimetheus.Epimetheus
-	ctx        *context.Context
+	name        string
+	cacheLayers []*Cache
+	watcher     *epimetheus.Epimetheus
+	ctx         context.Context
 }
 
-func NewMnemosyne(config *viper.Viper, watcher *epimetheus.Epimetheus) *Mnemosyne{
+func NewMnemosyne(config *viper.Viper, watcher *epimetheus.Epimetheus) *Mnemosyne {
 	cacheConfigs := viper.GetStringMap("cache")
-	caches := make([]*Mnemosyne, len(cacheConfigs))
-	i := 0
-	for cacheName :=range cacheConfigs{
-		caches[i] = NewMnemosyneInstance(cacheName, config, watcher)
+	caches := make(map[string]*MnemosyneInstance, len(cacheConfigs))
+	for cacheName := range cacheConfigs {
+		caches[cacheName] = NewMnemosyneInstance(cacheName, config, watcher)
 	}
 	return &Mnemosyne{
 		childs: caches,
 	}
 }
 
-func (m *Mnemosyn) Select(cacheName string) *MnemosyneInstance{
+func (m *Mnemosyne) Select(cacheName string) *MnemosyneInstance {
 	return m.childs[cacheName]
 }
 
@@ -70,50 +70,50 @@ func NewMnemosyneInstance(name string, config *viper.Viper, watcher *epimetheus.
 		}
 	}
 	return &MnemosyneInstance{
-		name:       name,
-		cachLayers: cachLayers,
-		watcher:    watcher,
-		ctx:		context.Background(),
+		name:        name,
+		cacheLayers: cachLayers,
+		watcher:     watcher,
+		ctx:         context.Background(),
 	}
 }
 
-func (mn *MnemosyneInstance) WithContext(ctx *context.Context) *MnemosyneInstance{
+func (mn *MnemosyneInstance) WithContext(ctx context.Context) *MnemosyneInstance {
 	return &MnemosyneInstance{
-		name:       mn.name,
-		cachLayers: mn.cachLayers,
-		watcher:    mn.watcher,
-		ctx:		ctx,
+		name:        mn.name,
+		cacheLayers: mn.cacheLayers,
+		watcher:     mn.watcher,
+		ctx:         ctx,
 	}
 }
 
-func (mn *MnemosyneInstance) Get(key string) (interface{}, error){
+func (mn *MnemosyneInstance) Get(key string) (interface{}, error) {
 	cacheErrors := make([]error, len(mn.cacheLayers))
 	var result interface{}
-	for i, layer := range mn.cachLayers{
+	for i, layer := range mn.cacheLayers {
 		result, cacheErrors[i] = layer.Get(key)
-		if err==nil	{
-			go mn.watcher.CacheRate.Inc(mn.name, Sprintf("layer%d", i))
+		if cacheErrors[i] == nil {
+			go mn.watcher.CacheRate.Inc(mn.name, fmt.Sprintf("layer%d", i))
 			return result, nil
 		}
 	}
 	go mn.watcher.CacheRate.Inc(mn.name, "miss")
-	return nil, Errors.New("Miss") // FIXME: better Error combination
+	return nil, errors.New("Miss") // FIXME: better Error combination
 }
 
 func (mn *MnemosyneInstance) Set(key string, value interface{}) error {
 	cacheErrors := make([]error, len(mn.cacheLayers))
-	for i, layer := range mn.cachLayers{
+	for i, layer := range mn.cacheLayers {
 		cacheErrors[i] = layer.Set(key, value)
 	}
 	return nil // FIXME: better Error combination
 }
 
 func (mn *MnemosyneInstance) TTL(key string) (int, time.Duration) {
-	for i, layer := range mn.cachLayers{
+	for i, layer := range mn.cacheLayers {
 		dur := layer.GetTTL(key)
 		if dur > 0 {
 			return i, dur
 		}
 	}
-	return -1, time.second * 0
+	return -1, time.Second * 0
 }
