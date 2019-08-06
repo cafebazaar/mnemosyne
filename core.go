@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"git.cafebazaar.ir/bazaar/search/octopus/pkg/epimetheus"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 )
 
@@ -68,13 +69,22 @@ func NewMnemosyneInstance(name string, config *viper.Viper, watcher *epimetheus.
 				config.GetInt(keyPrefix+".amnesia"),
 				config.GetBool(keyPrefix+".compression"),
 			)
+		} else if layerType == "tiny" {
+			cachLayers[i] = NewCacheTiny(config.GetInt(keyPrefix+".max-entry"),
+				config.GetDuration(keyPrefix+".ttl"),
+				config.GetInt(keyPrefix+".amnesia"),
+				config.GetBool(keyPrefix+".compression"),
+			)
+		} else {
+			logrus.Error("Malformed Config: Unknown cache type %s", layerType)
+			return nil
 		}
 	}
 	return &MnemosyneInstance{
 		name:        name,
 		cacheLayers: cachLayers,
 		watcher:     watcher,
-		softTTL:     config.GetDuration(configKeyPrefix + ".dsoft-ttl"),
+		softTTL:     config.GetDuration(configKeyPrefix + ".soft-ttl"),
 	}
 }
 

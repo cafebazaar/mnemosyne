@@ -94,6 +94,16 @@ func NewCacheInMem(maxMem int, TTL time.Duration, amnesiaChance int, compression
 	}
 }
 
+func NewCacheTiny(maxEntry int, TTL time.Duration, amnesiaChance int, compressionEnabled bool) *Cache {
+	return &Cache{
+		inMemCache:         nil,
+		amnesiaChance:      amnesiaChance,
+		compressionEnabled: compressionEnabled,
+		cacheTTL:           TTL,
+		ctx:                context.Background(),
+	}
+}
+
 func (cr *Cache) WithContext(ctx context.Context) *Cache {
 	return &Cache{
 		baseRedisClient:    cr.baseRedisClient,
