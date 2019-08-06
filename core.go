@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"git.cafebazaar.ir/bazaar/search/octopus/pkg/epimetheus"
@@ -18,7 +19,6 @@ type MnemosyneInstance struct {
 	name        string
 	cacheLayers []*Cache
 	watcher     *epimetheus.Epimetheus
-	ctx         context.Context
 	softTTL     time.Duration
 }
 
@@ -74,22 +74,11 @@ func NewMnemosyneInstance(name string, config *viper.Viper, watcher *epimetheus.
 		name:        name,
 		cacheLayers: cachLayers,
 		watcher:     watcher,
-		ctx:         context.Background(),
 		softTTL:     config.GetDuration(configKeyPrefix + ".dsoft-ttl"),
 	}
 }
 
-func (mn *MnemosyneInstance) WithContext(ctx context.Context) *MnemosyneInstance {
-	return &MnemosyneInstance{
-		name:        mn.name,
-		cacheLayers: mn.cacheLayers,
-		watcher:     mn.watcher,
-		softTTL:     mn.softTTL,
-		ctx:         ctx,
-	}
-}
-
-func (mn *MnemosyneInstance) get(key string) (interface{}, error) {
+func (mn *MnemosyneInstance) get(ctx context.Context, key string) (interface{}, error) {
 	cacheErrors := make([]error, len(mn.cacheLayers))
 	var result interface{}
 	for i, layer := range mn.cacheLayers {
@@ -104,8 +93,8 @@ func (mn *MnemosyneInstance) get(key string) (interface{}, error) {
 	return nil, errors.New("Miss") // FIXME: better Error combination
 }
 
-func (mn *MnemosyneInstance) Get(key string) (interface{}, error) {
-	cachedValue, err := mn.get(key)
+func (mn *MnemosyneInstance) Get(ctx context.Context, key string) (interface{}, error) {
+	cachedValue, err := mn.get(ctx, key)
 	if err != nil {
 		return nil, fmt.Errorf("failed to Get cached value")
 	}
@@ -116,8 +105,8 @@ func (mn *MnemosyneInstance) Get(key string) (interface{}, error) {
 	return cachable.CahcedObject, nil
 }
 
-func (mn *MnemosyneInstance) GetAndShouldUpdate(key string) (interface{}, bool, error) {
-	cachedValue, err := mn.get(key)
+func (mn *MnemosyneInstance) GetAndShouldUpdate(ctx context.Context, key string) (interface{}, bool, error) {
+	cachedValue, err := mn.get(ctx, key)
 	if err != nil {
 		return nil, false, fmt.Errorf("failed to Get cached value")
 	}
@@ -130,28 +119,36 @@ func (mn *MnemosyneInstance) GetAndShouldUpdate(key string) (interface{}, bool, 
 	return cachable.CahcedObject, shouldUpdate, nil
 }
 
-func (mn *MnemosyneInstance) Set(key string, value interface{}) error {
+func (mn *MnemosyneInstance) Set(ctx context.Context, key string, value interface{}) error {
 	toCache := cachable{
 		CahcedObject: value,
 		Time:         time.Now(),
 	}
-
 	cacheErrors := make([]error, len(mn.cacheLayers))
+	errorStrings := make([]string, len(mn.cacheLayers))
+	haveErorr := false
 	for i, layer := range mn.cacheLayers {
 		cacheErrors[i] = layer.Set(key, toCache)
+		if cacheErrors[i] != nil {
+			errorStrings[i] = cacheErrors[i].Error()
+			haveErorr = true
+		}
 	}
-	return nil // FIXME: better Error combination
+	if haveErorr {
+		return fmt.Errorf(strings.Join(errorStrings, ";"))
+	}
+	return nil
 }
 
-// func (mn *MnemosyneInstance) TTL(key string) (int, time.Duration) {
-// 	for i, layer := range mn.cacheLayers {
-// 		dur := layer.GetTTL(key)
-// 		if dur > 0 {
-// 			return i, dur
-// 		}
-// 	}
-// 	return -1, time.Second * 0
-// }
+func (mn *MnemosyneInstance) TTL(key string) (int, time.Duration) {
+	for i, layer := range mn.cacheLayers {
+		dur := layer.GetTTL(key)
+		if dur > 0 {
+			return i, dur
+		}
+	}
+	return -1, time.Second * 0
+}
 
 func (mn *MnemosyneInstance) fillUpperLayers(key string, value interface{}, layer int) {
 	for i := layer - 1; i >= 0; i-- {
