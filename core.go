@@ -70,8 +70,7 @@ func NewMnemosyneInstance(name string, config *viper.Viper, watcher *epimetheus.
 				config.GetBool(keyPrefix+".compression"),
 			)
 		} else if layerType == "tiny" {
-			cachLayers[i] = NewCacheTiny(config.GetInt(keyPrefix+".max-entry"),
-				config.GetDuration(keyPrefix+".ttl"),
+			cachLayers[i] = NewCacheTiny(
 				config.GetInt(keyPrefix+".amnesia"),
 				config.GetBool(keyPrefix+".compression"),
 			)

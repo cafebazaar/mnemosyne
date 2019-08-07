@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"math/rand"
+	"sync"
 	"time"
 
 	"github.com/allegro/bigcache"
@@ -16,6 +17,7 @@ type Cache struct {
 	baseRedisClient    *redis.Client
 	slaveRedisClients  []*redis.Client
 	inMemCache         *bigcache.BigCache
+	syncmap            *sync.Map
 	amnesiaChance      int
 	compressionEnabled bool
 	cacheTTL           time.Duration
@@ -94,12 +96,13 @@ func NewCacheInMem(maxMem int, TTL time.Duration, amnesiaChance int, compression
 	}
 }
 
-func NewCacheTiny(maxEntry int, TTL time.Duration, amnesiaChance int, compressionEnabled bool) *Cache {
+func NewCacheTiny(amnesiaChance int, compressionEnabled bool) *Cache {
+	data := sync.Map{}
 	return &Cache{
-		inMemCache:         nil,
+		syncmap:            &data,
 		amnesiaChance:      amnesiaChance,
 		compressionEnabled: compressionEnabled,
-		cacheTTL:           TTL,
+		cacheTTL:           time.Hour * 9999,
 		ctx:                context.Background(),
 	}
 }
@@ -122,7 +125,17 @@ func (cr *Cache) Get(key string) (interface{}, error) {
 	}
 	var rawBytes []byte
 	var err error
-	if cr.inMemCache != nil {
+	if cr.syncmap != nil {
+		val, ok := cr.syncmap.Load(key)
+		if !ok {
+			err = errors.New("Failed to load from syncmap")
+		} else {
+			rawBytes, ok = val.([]byte)
+			if !ok {
+				err = errors.New("Failed to load from syncmap")
+			}
+		}
+	} else if cr.inMemCache != nil {
 		rawBytes, err = cr.inMemCache.Get(key)
 	} else {
 		var strValue string
@@ -158,7 +171,10 @@ func (cr *Cache) Set(key string, value interface{}) error {
 	} else {
 		finalData = rawData
 	}
-	if cr.inMemCache != nil {
+	if cr.syncmap != nil {
+		cr.syncmap.Store(key, finalData)
+		return nil
+	} else if cr.inMemCache != nil {
 		return cr.inMemCache.Set(key, finalData)
 	}
 	client := cr.baseRedisClient.WithContext(cr.ctx)
@@ -170,7 +186,9 @@ func (cr *Cache) Delete(ctx context.Context, key string) error {
 	if cr.amnesiaChance == 100 {
 		return errors.New("Had Amnesia")
 	}
-	if cr.inMemCache != nil {
+	if cr.syncmap != nil {
+		cr.syncmap.Delete(key)
+	} else if cr.inMemCache != nil {
 		return cr.inMemCache.Delete(key)
 	}
 	client := cr.baseRedisClient.WithContext(ctx)
@@ -182,7 +200,9 @@ func (cr *Cache) Clear(ctx context.Context) error {
 	if cr.amnesiaChance == 100 {
 		return errors.New("Had Amnesia")
 	}
-	if cr.inMemCache != nil {
+	if cr.syncmap != nil {
+		cr.syncmap = &sync.Map{}
+	} else if cr.inMemCache != nil {
 		return cr.inMemCache.Reset()
 	}
 	client := cr.baseRedisClient.WithContext(ctx)
@@ -191,7 +211,7 @@ func (cr *Cache) Clear(ctx context.Context) error {
 }
 
 func (cr *Cache) TTL(key string) time.Duration {
-	if cr.inMemCache != nil {
+	if cr.inMemCache != nil || cr.syncmap != nil {
 		return time.Second * 0
 	}
 	client := cr.pickClient().WithContext(cr.ctx)
