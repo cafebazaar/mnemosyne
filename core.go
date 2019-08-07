@@ -24,7 +24,7 @@ type MnemosyneInstance struct {
 }
 
 func NewMnemosyne(config *viper.Viper, watcher *epimetheus.Epimetheus) *Mnemosyne {
-	cacheConfigs := viper.GetStringMap("cache")
+	cacheConfigs := config.GetStringMap("cache")
 	caches := make(map[string]*MnemosyneInstance, len(cacheConfigs))
 	for cacheName := range cacheConfigs {
 		caches[cacheName] = NewMnemosyneInstance(cacheName, config, watcher)
