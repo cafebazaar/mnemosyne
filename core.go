@@ -2,7 +2,6 @@ package mnemosyne
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -21,6 +20,14 @@ type MnemosyneInstance struct {
 	cacheLayers []*Cache
 	watcher     *epimetheus.Epimetheus
 	softTTL     time.Duration
+}
+
+type ErrCacheMiss struct {
+	message string
+}
+
+func (e *ErrCacheMiss) Error() string {
+	return e.message
 }
 
 func NewMnemosyne(config *viper.Viper, watcher *epimetheus.Epimetheus) *Mnemosyne {
@@ -99,13 +106,13 @@ func (mn *MnemosyneInstance) get(ctx context.Context, key string) (interface{}, 
 		}
 	}
 	go mn.watcher.CacheRate.Inc(mn.name, "miss")
-	return nil, errors.New("Miss") // FIXME: better Error combination
+	return nil, &ErrCacheMiss{message: "Miss"} // FIXME: better Error combination
 }
 
 func (mn *MnemosyneInstance) Get(ctx context.Context, key string) (interface{}, error) {
 	cachedValue, err := mn.get(ctx, key)
 	if err != nil {
-		return nil, fmt.Errorf("failed to Get cached value")
+		return nil, err
 	}
 	cachable, ok := cachedValue.(*cachable)
 	if !ok {
@@ -117,7 +124,7 @@ func (mn *MnemosyneInstance) Get(ctx context.Context, key string) (interface{}, 
 func (mn *MnemosyneInstance) GetAndShouldUpdate(ctx context.Context, key string) (interface{}, bool, error) {
 	cachedValue, err := mn.get(ctx, key)
 	if err != nil {
-		return nil, false, fmt.Errorf("failed to Get cached value")
+		return nil, false, err
 	}
 	cachable, ok := cachedValue.(*cachable)
 	if !ok {
