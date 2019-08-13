@@ -114,11 +114,11 @@ func (mn *MnemosyneInstance) Get(ctx context.Context, key string) (interface{}, 
 	if err != nil {
 		return nil, err
 	}
-	cachable, ok := cachedValue.(*cachable)
+	cachableObj, ok := cachedValue.(cachable)
 	if !ok {
 		return nil, fmt.Errorf("failed to extract cachable object")
 	}
-	return cachable.CahcedObject, nil
+	return cachableObj.CahcedObject, nil
 }
 
 func (mn *MnemosyneInstance) GetAndShouldUpdate(ctx context.Context, key string) (interface{}, bool, error) {
@@ -126,13 +126,13 @@ func (mn *MnemosyneInstance) GetAndShouldUpdate(ctx context.Context, key string)
 	if err != nil {
 		return nil, false, err
 	}
-	cachable, ok := cachedValue.(*cachable)
+	cachableObj, ok := cachedValue.(cachable)
 	if !ok {
 		return nil, false, fmt.Errorf("failed to extract cachable object")
 	}
 
-	shouldUpdate := time.Now().Sub(cachable.Time) > mn.softTTL
-	return cachable.CahcedObject, shouldUpdate, nil
+	shouldUpdate := time.Now().Sub(cachableObj.Time) > mn.softTTL
+	return cachableObj.CahcedObject, shouldUpdate, nil
 }
 
 func (mn *MnemosyneInstance) Set(ctx context.Context, key string, value interface{}) error {
