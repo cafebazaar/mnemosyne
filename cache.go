@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"math/rand"
 	"sync"
 	"time"
@@ -153,7 +154,10 @@ func (cr *Cache) Get(key string) (*cachableRet, error) {
 		finalBytes = rawBytes
 	}
 	var finalObject cachableRet
-	json.Unmarshal(finalBytes, &finalObject)
+	unmarshalErr := json.Unmarshal(finalBytes, &finalObject)
+	if unmarshalErr != nil {
+		return nil, fmt.Errorf("failed to unmarshall cached value : %v", unmarshalErr)
+	}
 	return &finalObject, nil
 }
 
