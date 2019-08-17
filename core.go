@@ -137,6 +137,10 @@ func (mn *MnemosyneInstance) GetAndShouldUpdate(ctx context.Context, key string,
 }
 
 func (mn *MnemosyneInstance) Set(ctx context.Context, key string, value interface{}) error {
+	if value == nil {
+		return fmt.Errorf("cannot set nil value in cache")
+	}
+
 	toCache := cachable{
 		CahcedObject: value,
 		Time:         time.Now(),
@@ -169,6 +173,9 @@ func (mn *MnemosyneInstance) TTL(key string) (int, time.Duration) {
 
 func (mn *MnemosyneInstance) fillUpperLayers(key string, value *cachableRet, layer int) {
 	for i := layer - 1; i >= 0; i-- {
+		if value == nil {
+			continue
+		}
 		mn.cacheLayers[i].Set(key, *value)
 	}
 }
