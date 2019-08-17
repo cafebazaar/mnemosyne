@@ -176,6 +176,9 @@ func (mn *MnemosyneInstance) fillUpperLayers(key string, value *cachableRet, lay
 		if value == nil {
 			continue
 		}
-		mn.cacheLayers[i].Set(key, *value)
+		err := mn.cacheLayers[i].Set(key, *value)
+		if err != nil {
+			logrus.Errorf("failed to fill layer %d : %v", i, err)
+		}
 	}
 }
