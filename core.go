@@ -2,6 +2,7 @@ package mnemosyne
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -94,9 +95,9 @@ func NewMnemosyneInstance(name string, config *viper.Viper, watcher *epimetheus.
 	}
 }
 
-func (mn *MnemosyneInstance) get(ctx context.Context, key string) (interface{}, error) {
+func (mn *MnemosyneInstance) get(ctx context.Context, key string) (*cachableRet, error) {
 	cacheErrors := make([]error, len(mn.cacheLayers))
-	var result interface{}
+	var result *cachableRet
 	for i, layer := range mn.cacheLayers {
 		result, cacheErrors[i] = layer.WithContext(ctx).Get(key)
 		if cacheErrors[i] == nil {
@@ -109,30 +110,30 @@ func (mn *MnemosyneInstance) get(ctx context.Context, key string) (interface{}, 
 	return nil, &ErrCacheMiss{message: "Miss"} // FIXME: better Error combination
 }
 
-func (mn *MnemosyneInstance) Get(ctx context.Context, key string) (interface{}, error) {
-	cachedValue, err := mn.get(ctx, key)
+func (mn *MnemosyneInstance) Get(ctx context.Context, key string, ref interface{}) error {
+	cachableObj, err := mn.get(ctx, key)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	cachableObj, ok := cachedValue.(cachable)
-	if !ok {
-		return nil, fmt.Errorf("failed to extract cachable object")
+	err = json.Unmarshal(*cachableObj.CahcedObject, ref)
+	if err != nil {
+		return err
 	}
-	return cachableObj.CahcedObject, nil
+	return nil
 }
 
-func (mn *MnemosyneInstance) GetAndShouldUpdate(ctx context.Context, key string) (interface{}, bool, error) {
-	cachedValue, err := mn.get(ctx, key)
+func (mn *MnemosyneInstance) GetAndShouldUpdate(ctx context.Context, key string, ref interface{}) (bool, error) {
+	cachableObj, err := mn.get(ctx, key)
 	if err != nil {
-		return nil, false, err
-	}
-	cachableObj, ok := cachedValue.(cachable)
-	if !ok {
-		return nil, false, fmt.Errorf("failed to extract cachable object")
+		return false, err
 	}
 
 	shouldUpdate := time.Now().Sub(cachableObj.Time) > mn.softTTL
-	return cachableObj.CahcedObject, shouldUpdate, nil
+	err = json.Unmarshal(*cachableObj.CahcedObject, ref)
+	if err != nil {
+		return false, err
+	}
+	return shouldUpdate, nil
 }
 
 func (mn *MnemosyneInstance) Set(ctx context.Context, key string, value interface{}) error {
@@ -166,8 +167,8 @@ func (mn *MnemosyneInstance) TTL(key string) (int, time.Duration) {
 	return -1, time.Second * 0
 }
 
-func (mn *MnemosyneInstance) fillUpperLayers(key string, value interface{}, layer int) {
+func (mn *MnemosyneInstance) fillUpperLayers(key string, value *cachableRet, layer int) {
 	for i := layer - 1; i >= 0; i-- {
-		mn.cacheLayers[i].Set(key, value)
+		mn.cacheLayers[i].Set(key, *value)
 	}
 }

@@ -2,6 +2,7 @@ package mnemosyne
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"math/rand"
 	"sync"
@@ -10,7 +11,6 @@ import (
 	"github.com/allegro/bigcache"
 	"github.com/go-redis/redis"
 	"github.com/sirupsen/logrus"
-	msgpack "gopkg.in/vmihailenco/msgpack.v2"
 )
 
 type Cache struct {
@@ -119,7 +119,7 @@ func (cr *Cache) WithContext(ctx context.Context) *Cache {
 	}
 }
 
-func (cr *Cache) Get(key string) (interface{}, error) {
+func (cr *Cache) Get(key string) (*cachableRet, error) {
 	if cr.amnesiaChance > rand.Intn(100) {
 		return nil, errors.New("Had Amnesia")
 	}
@@ -152,16 +152,16 @@ func (cr *Cache) Get(key string) (interface{}, error) {
 	} else {
 		finalBytes = rawBytes
 	}
-	var finalObject interface{}
-	msgpack.Unmarshal(finalBytes, &finalObject)
-	return finalObject, nil
+	var finalObject cachableRet
+	json.Unmarshal(finalBytes, &finalObject)
+	return &finalObject, nil
 }
 
 func (cr *Cache) Set(key string, value interface{}) error {
 	if cr.amnesiaChance == 100 {
 		return errors.New("Had Amnesia")
 	}
-	rawData, err := msgpack.Marshal(value)
+	rawData, err := json.Marshal(value)
 	if err != nil {
 		return err
 	}
