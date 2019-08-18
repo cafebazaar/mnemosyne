@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/pkg/errors"
 	"strings"
 	"time"
 
@@ -126,6 +127,11 @@ func (mn *MnemosyneInstance) GetAndShouldUpdate(ctx context.Context, key string,
 	cachableObj, err := mn.get(ctx, key)
 	if err != nil {
 		return false, err
+	}
+
+	if cachableObj == nil || cachableObj.CahcedObject == nil {
+		logrus.Errorf("nil object found in cache %s ! %v", key, cachableObj)
+		return false, errors.New("nil found")
 	}
 
 	shouldUpdate := time.Now().Sub(cachableObj.Time) > mn.softTTL
