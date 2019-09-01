@@ -113,6 +113,7 @@ func (cr *Cache) WithContext(ctx context.Context) *Cache {
 		baseRedisClient:    cr.baseRedisClient,
 		slaveRedisClients:  cr.slaveRedisClients,
 		inMemCache:         cr.inMemCache,
+		syncmap:            cr.syncmap,
 		amnesiaChance:      cr.amnesiaChance,
 		compressionEnabled: cr.compressionEnabled,
 		cacheTTL:           cr.cacheTTL,
@@ -227,7 +228,7 @@ func (cr *Cache) TTL(key string) time.Duration {
 }
 
 func (cr *Cache) pickClient() *redis.Client {
-	if cr.slaveRedisClients == nil {
+	if len(cr.slaveRedisClients) == 0 {
 		return cr.baseRedisClient
 	}
 	cl := rand.Intn(len(cr.slaveRedisClients) + 1)

@@ -4,9 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/pkg/errors"
 	"strings"
 	"time"
+
+	"github.com/pkg/errors"
 
 	"git.cafebazaar.ir/bazaar/search/octopus/pkg/epimetheus"
 	"github.com/sirupsen/logrus"
@@ -53,25 +54,25 @@ func NewMnemosyneInstance(name string, config *viper.Viper, watcher *epimetheus.
 	}
 	configKeyPrefix := fmt.Sprintf("cache.%s", name)
 	layerNames := config.GetStringSlice(configKeyPrefix + ".layers")
-	cachLayers := make([]*Cache, len(layerNames))
+	cacheLayers := make([]*Cache, len(layerNames))
 	for i, layerName := range layerNames {
 		keyPrefix := configKeyPrefix + "." + layerName
 		layerType := config.GetString(keyPrefix + ".type")
 		if layerType == "memory" {
-			cachLayers[i] = NewCacheInMem(config.GetInt(keyPrefix+".max-memory"),
+			cacheLayers[i] = NewCacheInMem(config.GetInt(keyPrefix+".max-memory"),
 				config.GetDuration(keyPrefix+".ttl"),
 				config.GetInt(keyPrefix+".amnesia"),
 				config.GetBool(keyPrefix+".compression"),
 			)
 		} else if layerType == "redis" {
-			cachLayers[i] = NewCacheRedis(config.GetString(keyPrefix+".address"),
+			cacheLayers[i] = NewCacheRedis(config.GetString(keyPrefix+".address"),
 				config.GetInt(keyPrefix+".db"),
 				config.GetDuration(keyPrefix+".ttl"),
 				config.GetInt(keyPrefix+".amnesia"),
 				config.GetBool(keyPrefix+".compression"),
 			)
 		} else if layerType == "gaurdian" {
-			cachLayers[i] = NewCacheClusterRedis(config.GetString(keyPrefix+".address"),
+			cacheLayers[i] = NewCacheClusterRedis(config.GetString(keyPrefix+".address"),
 				config.GetStringSlice(keyPrefix+".slaves"),
 				config.GetInt(keyPrefix+".db"),
 				config.GetDuration(keyPrefix+".ttl"),
@@ -79,7 +80,7 @@ func NewMnemosyneInstance(name string, config *viper.Viper, watcher *epimetheus.
 				config.GetBool(keyPrefix+".compression"),
 			)
 		} else if layerType == "tiny" {
-			cachLayers[i] = NewCacheTiny(
+			cacheLayers[i] = NewCacheTiny(
 				config.GetInt(keyPrefix+".amnesia"),
 				config.GetBool(keyPrefix+".compression"),
 			)
@@ -90,7 +91,7 @@ func NewMnemosyneInstance(name string, config *viper.Viper, watcher *epimetheus.
 	}
 	return &MnemosyneInstance{
 		name:        name,
-		cacheLayers: cachLayers,
+		cacheLayers: cacheLayers,
 		watcher:     watcher,
 		softTTL:     config.GetDuration(configKeyPrefix + ".soft-ttl"),
 	}
