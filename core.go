@@ -51,6 +51,7 @@ func (m *Mnemosyne) Select(cacheName string) *MnemosyneInstance {
 func NewMnemosyneInstance(name string, config *viper.Viper, watcher *epimetheus.Epimetheus) *MnemosyneInstance {
 	if watcher == nil {
 		watcher = epimetheus.NewEpimetheus(config)
+		watcher.InitWatchers()
 	}
 	configKeyPrefix := fmt.Sprintf("cache.%s", name)
 	layerNames := config.GetStringSlice(configKeyPrefix + ".layers")
