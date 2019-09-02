@@ -50,9 +50,9 @@ func (m *Mnemosyne) Select(cacheName string) *MnemosyneInstance {
 
 func NewMnemosyneInstance(name string, config *viper.Viper, watcher *epimetheus.Epimetheus) *MnemosyneInstance {
 	if watcher == nil {
-		watcher = epimetheus.NewEpimetheus(config)
+		logrus.Fatal("Epimetheus Watcher should be given to Mnemosyne")
 	}
-	watcher.InitWatchers()
+	commTimer := watcher.CommTimer
 	configKeyPrefix := fmt.Sprintf("cache.%s", name)
 	layerNames := config.GetStringSlice(configKeyPrefix + ".layers")
 	cacheLayers := make([]*Cache, len(layerNames))
@@ -75,7 +75,7 @@ func NewMnemosyneInstance(name string, config *viper.Viper, watcher *epimetheus.
 				config.GetDuration(keyPrefix+".ttl"),
 				config.GetInt(keyPrefix+".amnesia"),
 				config.GetBool(keyPrefix+".compression"),
-				watcher.CommTimer,
+				commTimer,
 			)
 		} else if layerType == "gaurdian" {
 			cacheLayers[i] = NewCacheClusterRedis(
@@ -86,7 +86,7 @@ func NewMnemosyneInstance(name string, config *viper.Viper, watcher *epimetheus.
 				config.GetDuration(keyPrefix+".ttl"),
 				config.GetInt(keyPrefix+".amnesia"),
 				config.GetBool(keyPrefix+".compression"),
-				watcher.CommTimer,
+				commTimer,
 			)
 		} else if layerType == "tiny" {
 			cacheLayers[i] = NewCacheTiny(
