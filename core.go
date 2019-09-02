@@ -59,28 +59,37 @@ func NewMnemosyneInstance(name string, config *viper.Viper, watcher *epimetheus.
 		keyPrefix := configKeyPrefix + "." + layerName
 		layerType := config.GetString(keyPrefix + ".type")
 		if layerType == "memory" {
-			cacheLayers[i] = NewCacheInMem(config.GetInt(keyPrefix+".max-memory"),
+			cacheLayers[i] = NewCacheInMem(
+				layerName,
+				config.GetInt(keyPrefix+".max-memory"),
 				config.GetDuration(keyPrefix+".ttl"),
 				config.GetInt(keyPrefix+".amnesia"),
 				config.GetBool(keyPrefix+".compression"),
 			)
 		} else if layerType == "redis" {
-			cacheLayers[i] = NewCacheRedis(config.GetString(keyPrefix+".address"),
+			cacheLayers[i] = NewCacheRedis(
+				layerName,
+				config.GetString(keyPrefix+".address"),
 				config.GetInt(keyPrefix+".db"),
 				config.GetDuration(keyPrefix+".ttl"),
 				config.GetInt(keyPrefix+".amnesia"),
 				config.GetBool(keyPrefix+".compression"),
+				watcher.CommTimer,
 			)
 		} else if layerType == "gaurdian" {
-			cacheLayers[i] = NewCacheClusterRedis(config.GetString(keyPrefix+".address"),
+			cacheLayers[i] = NewCacheClusterRedis(
+				layerName,
+				config.GetString(keyPrefix+".address"),
 				config.GetStringSlice(keyPrefix+".slaves"),
 				config.GetInt(keyPrefix+".db"),
 				config.GetDuration(keyPrefix+".ttl"),
 				config.GetInt(keyPrefix+".amnesia"),
 				config.GetBool(keyPrefix+".compression"),
+				watcher.CommTimer,
 			)
 		} else if layerType == "tiny" {
 			cacheLayers[i] = NewCacheTiny(
+				layerName,
 				config.GetInt(keyPrefix+".amnesia"),
 				config.GetBool(keyPrefix+".compression"),
 			)
