@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-redis/redis"
 	"github.com/pkg/errors"
 
 	"git.cafebazaar.ir/bazaar/search/octopus/pkg/epimetheus"
@@ -136,7 +137,9 @@ func (mn *MnemosyneInstance) Get(ctx context.Context, key string, ref interface{
 
 func (mn *MnemosyneInstance) GetAndShouldUpdate(ctx context.Context, key string, ref interface{}) (bool, error) {
 	cachableObj, err := mn.get(ctx, key)
-	if err != nil {
+	if err == redis.Nil {
+		return true, err
+	} else if err != nil {
 		return false, err
 	}
 
