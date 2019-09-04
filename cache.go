@@ -155,10 +155,12 @@ func (cr *Cache) Get(key string) (*cachableRet, error) {
 		client := cr.pickClient().WithContext(cr.ctx)
 		timer := cr.Timer.Start()
 		strValue, err = client.Get(key).Result()
-		if err != nil {
-			timer.Done(cr.layerName, "get", "error")
-		} else {
+		if err == nil {
 			timer.Done(cr.layerName, "get", "ok")
+		} else if err == redis.Nil {
+			timer.Done(cr.layerName, "get", "miss")
+		} else {
+			timer.Done(cr.layerName, "get", "error")
 		}
 		rawBytes = []byte(strValue)
 	}
