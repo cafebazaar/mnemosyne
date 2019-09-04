@@ -128,7 +128,7 @@ func (mn *MnemosyneInstance) Get(ctx context.Context, key string, ref interface{
 	if err != nil {
 		return err
 	}
-	err = json.Unmarshal(*cachableObj.CahcedObject, ref)
+	err = json.Unmarshal(*cachableObj.CachedObject, ref)
 	if err != nil {
 		return err
 	}
@@ -143,13 +143,13 @@ func (mn *MnemosyneInstance) GetAndShouldUpdate(ctx context.Context, key string,
 		return false, err
 	}
 
-	if cachableObj == nil || cachableObj.CahcedObject == nil {
+	if cachableObj == nil || cachableObj.CachedObject == nil {
 		logrus.Errorf("nil object found in cache %s ! %v", key, cachableObj)
 		return false, errors.New("nil found")
 	}
 
 	shouldUpdate := time.Now().Sub(cachableObj.Time) > mn.softTTL
-	err = json.Unmarshal(*cachableObj.CahcedObject, ref)
+	err = json.Unmarshal(*cachableObj.CachedObject, ref)
 	if err != nil {
 		return false, err
 	}
@@ -162,7 +162,7 @@ func (mn *MnemosyneInstance) Set(ctx context.Context, key string, value interfac
 	}
 
 	toCache := cachable{
-		CahcedObject: value,
+		CachedObject: value,
 		Time:         time.Now(),
 	}
 	cacheErrors := make([]error, len(mn.cacheLayers))

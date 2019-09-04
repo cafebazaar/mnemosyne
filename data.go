@@ -7,10 +7,10 @@ import (
 
 type cachable struct {
 	Time         time.Time
-	CahcedObject interface{}
+	CachedObject interface{}
 }
 
 type cachableRet struct {
 	Time         time.Time
-	CahcedObject *json.RawMessage
+	CachedObject *json.RawMessage
 }
