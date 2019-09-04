@@ -128,6 +128,12 @@ func (mn *MnemosyneInstance) Get(ctx context.Context, key string, ref interface{
 	if err != nil {
 		return err
 	}
+
+	if cachableObj == nil || cachableObj.CachedObject == nil {
+		logrus.Errorf("nil object found in cache %s ! %v", key, cachableObj)
+		return errors.New("nil found")
+	}
+
 	err = json.Unmarshal(*cachableObj.CachedObject, ref)
 	if err != nil {
 		return err
