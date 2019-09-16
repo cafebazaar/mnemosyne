@@ -154,11 +154,31 @@ func (mn *MnemosyneInstance) GetAndShouldUpdate(ctx context.Context, key string,
 		return false, errors.New("nil found")
 	}
 
-	shouldUpdate := time.Now().Sub(cachableObj.Time) > mn.softTTL
 	err = json.Unmarshal(*cachableObj.CachedObject, ref)
 	if err != nil {
 		return false, err
 	}
+	dataAge := time.Now().Sub(cachableObj.Time)
+	go mn.monitorDataHotness(dataAge)
+	shouldUpdate := dataAge > mn.softTTL
+	return shouldUpdate, nil
+}
+
+func (mn *MnemosyneInstance) ShouldUpdate(ctx context.Context, key string) (bool, error) {
+	cachableObj, err := mn.get(ctx, key)
+	if err == redis.Nil {
+		return true, err
+	} else if err != nil {
+		return false, err
+	}
+
+	if cachableObj == nil || cachableObj.CachedObject == nil {
+		logrus.Errorf("nil object found in cache %s ! %v", key, cachableObj)
+		return false, errors.New("nil found")
+	}
+
+	shouldUpdate := time.Now().Sub(cachableObj.Time) > mn.softTTL
+
 	return shouldUpdate, nil
 }
 
@@ -206,5 +226,15 @@ func (mn *MnemosyneInstance) fillUpperLayers(key string, value *cachableRet, lay
 		if err != nil {
 			logrus.Errorf("failed to fill layer %d : %v", i, err)
 		}
+	}
+}
+
+func (mn *MnemosyneInstance) monitorDataHotness(age time.Duration) {
+	if age <= mn.softTTL {
+		mn.watcher.CacheRate.Inc(mn.name+"-hotness", "hot")
+	} else if age <= mn.softTTL*2 {
+		mn.watcher.CacheRate.Inc(mn.name+"-hotness", "warm")
+	} else {
+		mn.watcher.CacheRate.Inc(mn.name+"-hotness", "cold")
 	}
 }
