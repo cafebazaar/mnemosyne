@@ -25,10 +25,10 @@ type Cache struct {
 	compressionEnabled bool
 	cacheTTL           time.Duration
 	ctx                context.Context
-	Timer              *epimetheus.Timer
+	Watcher              *epimetheus.TimerWithCounter
 }
 
-func NewCacheRedis(layerName string, addr string, db int, TTL time.Duration, amnesiaChance int, compressionEnabled bool, timer *epimetheus.Timer) *Cache {
+func NewCacheRedis(layerName string, addr string, db int, TTL time.Duration, amnesiaChance int, compressionEnabled bool, watcher *epimetheus.TimerWithCounter) *Cache {
 	redisOptions := &redis.Options{
 		Addr: addr,
 		DB:   db,
@@ -46,11 +46,11 @@ func NewCacheRedis(layerName string, addr string, db int, TTL time.Duration, amn
 		compressionEnabled: compressionEnabled,
 		cacheTTL:           TTL,
 		ctx:                context.Background(),
-		Timer:              timer,
+		Watcher:              watcher,
 	}
 }
 
-func NewCacheClusterRedis(layerName string, masterAddr string, slaveAddrs []string, db int, TTL time.Duration, amnesiaChance int, compressionEnabled bool, timer *epimetheus.Timer) *Cache {
+func NewCacheClusterRedis(layerName string, masterAddr string, slaveAddrs []string, db int, TTL time.Duration, amnesiaChance int, compressionEnabled bool, watcher *epimetheus.TimerWithCounter) *Cache {
 	slaveClients := make([]*redis.Client, len(slaveAddrs))
 	for i, addr := range slaveAddrs {
 		redisOptions := &redis.Options{
@@ -78,7 +78,7 @@ func NewCacheClusterRedis(layerName string, masterAddr string, slaveAddrs []stri
 		compressionEnabled: compressionEnabled,
 		cacheTTL:           TTL,
 		ctx:                context.Background(),
-		Timer:              timer,
+		Watcher:              watcher,
 	}
 }
 
@@ -128,7 +128,7 @@ func (cr *Cache) WithContext(ctx context.Context) *Cache {
 		compressionEnabled: cr.compressionEnabled,
 		cacheTTL:           cr.cacheTTL,
 		ctx:                ctx,
-		Timer:              cr.Timer,
+		Watcher:            cr.Watcher,
 	}
 }
 
@@ -153,14 +153,14 @@ func (cr *Cache) Get(key string) (*cachableRet, error) {
 	} else {
 		var strValue string
 		client := cr.pickClient().WithContext(cr.ctx)
-		timer := cr.Timer.Start()
+		watcher := cr.Watcher.Start()
 		strValue, err = client.Get(key).Result()
 		if err == nil {
-			timer.Done(cr.layerName, "get", "ok")
+			watcher.Done(cr.layerName, "get", "ok")
 		} else if err == redis.Nil {
-			timer.Done(cr.layerName, "get", "miss")
+			watcher.Done(cr.layerName, "get", "miss")
 		} else {
-			timer.Done(cr.layerName, "get", "error")
+			watcher.Done(cr.layerName, "get", "error")
 		}
 		rawBytes = []byte(strValue)
 	}
@@ -202,12 +202,12 @@ func (cr *Cache) Set(key string, value interface{}) error {
 		return cr.inMemCache.Set(key, finalData)
 	}
 	client := cr.baseRedisClient.WithContext(cr.ctx)
-	timer := cr.Timer.Start()
+	watcher := cr.Watcher.Start()
 	err = client.SetNX(key, finalData, cr.cacheTTL).Err()
 	if err != nil {
-		timer.Done(cr.layerName, "set", "error")
+		watcher.Done(cr.layerName, "set", "error")
 	} else {
-		timer.Done(cr.layerName, "set", "ok")
+		watcher.Done(cr.layerName, "set", "ok")
 	}
 
 	return err
