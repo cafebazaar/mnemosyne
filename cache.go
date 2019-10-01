@@ -25,13 +25,16 @@ type Cache struct {
 	compressionEnabled bool
 	cacheTTL           time.Duration
 	ctx                context.Context
-	Watcher              *epimetheus.TimerWithCounter
+	Watcher            *epimetheus.TimerWithCounter
 }
 
-func NewCacheRedis(layerName string, addr string, db int, TTL time.Duration, amnesiaChance int, compressionEnabled bool, watcher *epimetheus.TimerWithCounter) *Cache {
+func NewCacheRedis(layerName string, addr string, db int, TTL time.Duration, redisIdleTimeout time.Duration, amnesiaChance int, compressionEnabled bool, watcher *epimetheus.TimerWithCounter) *Cache {
 	redisOptions := &redis.Options{
 		Addr: addr,
 		DB:   db,
+	}
+	if redisIdleTimeout >= time.Second {
+		redisOptions.IdleTimeout = redisIdleTimeout
 	}
 	redisClient := redis.NewClient(redisOptions)
 
@@ -46,7 +49,7 @@ func NewCacheRedis(layerName string, addr string, db int, TTL time.Duration, amn
 		compressionEnabled: compressionEnabled,
 		cacheTTL:           TTL,
 		ctx:                context.Background(),
-		Watcher:              watcher,
+		Watcher:            watcher,
 	}
 }
 
@@ -78,7 +81,7 @@ func NewCacheClusterRedis(layerName string, masterAddr string, slaveAddrs []stri
 		compressionEnabled: compressionEnabled,
 		cacheTTL:           TTL,
 		ctx:                context.Background(),
-		Watcher:              watcher,
+		Watcher:            watcher,
 	}
 }
 
