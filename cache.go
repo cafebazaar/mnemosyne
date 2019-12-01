@@ -15,7 +15,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-type Cache struct {
+type cache struct {
 	layerName          string
 	baseRedisClient    *redis.Client
 	slaveRedisClients  []*redis.Client
@@ -28,7 +28,7 @@ type Cache struct {
 	Watcher            *epimetheus.TimerWithCounter
 }
 
-func NewCacheRedis(layerName string, addr string, db int, TTL time.Duration, redisIdleTimeout time.Duration, amnesiaChance int, compressionEnabled bool, watcher *epimetheus.TimerWithCounter) *Cache {
+func newCacheRedis(layerName string, addr string, db int, TTL time.Duration, redisIdleTimeout time.Duration, amnesiaChance int, compressionEnabled bool, watcher *epimetheus.TimerWithCounter) *cache {
 	redisOptions := &redis.Options{
 		Addr: addr,
 		DB:   db,
@@ -42,7 +42,7 @@ func NewCacheRedis(layerName string, addr string, db int, TTL time.Duration, red
 	if err != nil {
 		logrus.WithError(err).Error("error while connecting to Redis")
 	}
-	return &Cache{
+	return &cache{
 		layerName:          layerName,
 		baseRedisClient:    redisClient,
 		amnesiaChance:      amnesiaChance,
@@ -53,7 +53,7 @@ func NewCacheRedis(layerName string, addr string, db int, TTL time.Duration, red
 	}
 }
 
-func NewCacheClusterRedis(layerName string, masterAddr string, slaveAddrs []string, db int, TTL time.Duration, amnesiaChance int, compressionEnabled bool, watcher *epimetheus.TimerWithCounter) *Cache {
+func newCacheClusterRedis(layerName string, masterAddr string, slaveAddrs []string, db int, TTL time.Duration, amnesiaChance int, compressionEnabled bool, watcher *epimetheus.TimerWithCounter) *cache {
 	slaveClients := make([]*redis.Client, len(slaveAddrs))
 	for i, addr := range slaveAddrs {
 		redisOptions := &redis.Options{
@@ -73,7 +73,7 @@ func NewCacheClusterRedis(layerName string, masterAddr string, slaveAddrs []stri
 		logrus.WithError(err).Error("error while connecting to Redis Master")
 	}
 
-	return &Cache{
+	return &cache{
 		layerName:          layerName,
 		baseRedisClient:    redisClient,
 		slaveRedisClients:  slaveClients,
@@ -85,7 +85,7 @@ func NewCacheClusterRedis(layerName string, masterAddr string, slaveAddrs []stri
 	}
 }
 
-func NewCacheInMem(layerName string, maxMem int, TTL time.Duration, amnesiaChance int, compressionEnabled bool) *Cache {
+func newCacheInMem(layerName string, maxMem int, TTL time.Duration, amnesiaChance int, compressionEnabled bool) *cache {
 	opts := bigcache.Config{
 		Shards:             1024,
 		LifeWindow:         TTL,
@@ -98,7 +98,7 @@ func NewCacheInMem(layerName string, maxMem int, TTL time.Duration, amnesiaChanc
 	if err != nil {
 		logrus.Errorf("InMemCache Error: %v", err)
 	}
-	return &Cache{
+	return &cache{
 		layerName:          layerName,
 		inMemCache:         cacheInstance,
 		amnesiaChance:      amnesiaChance,
@@ -108,9 +108,9 @@ func NewCacheInMem(layerName string, maxMem int, TTL time.Duration, amnesiaChanc
 	}
 }
 
-func NewCacheTiny(layerName string, amnesiaChance int, compressionEnabled bool) *Cache {
+func newCacheTiny(layerName string, amnesiaChance int, compressionEnabled bool) *cache {
 	data := sync.Map{}
-	return &Cache{
+	return &cache{
 		layerName:          layerName,
 		syncmap:            &data,
 		amnesiaChance:      amnesiaChance,
@@ -120,8 +120,8 @@ func NewCacheTiny(layerName string, amnesiaChance int, compressionEnabled bool) 
 	}
 }
 
-func (cr *Cache) WithContext(ctx context.Context) *Cache {
-	return &Cache{
+func (cr *cache) withContext(ctx context.Context) *cache {
+	return &cache{
 		layerName:          cr.layerName,
 		baseRedisClient:    cr.baseRedisClient,
 		slaveRedisClients:  cr.slaveRedisClients,
@@ -135,7 +135,7 @@ func (cr *Cache) WithContext(ctx context.Context) *Cache {
 	}
 }
 
-func (cr *Cache) Get(key string) (*cachableRet, error) {
+func (cr *cache) get(key string) (*cachableRet, error) {
 	if cr.amnesiaChance > rand.Intn(100) {
 		return nil, errors.New("Had Amnesia")
 	}
@@ -184,7 +184,7 @@ func (cr *Cache) Get(key string) (*cachableRet, error) {
 	return &finalObject, nil
 }
 
-func (cr *Cache) Set(key string, value interface{}) error {
+func (cr *cache) set(key string, value interface{}) error {
 	if cr.amnesiaChance == 100 {
 		return errors.New("Had Amnesia")
 	}
@@ -216,7 +216,7 @@ func (cr *Cache) Set(key string, value interface{}) error {
 	return err
 }
 
-func (cr *Cache) Delete(ctx context.Context, key string) error {
+func (cr *cache) delete(ctx context.Context, key string) error {
 	if cr.amnesiaChance == 100 {
 		return errors.New("Had Amnesia")
 	}
@@ -230,7 +230,7 @@ func (cr *Cache) Delete(ctx context.Context, key string) error {
 	return err
 }
 
-func (cr *Cache) Clear(ctx context.Context) error {
+func (cr *cache) clear() error {
 	if cr.amnesiaChance == 100 {
 		return errors.New("Had Amnesia")
 	}
@@ -239,12 +239,12 @@ func (cr *Cache) Clear(ctx context.Context) error {
 	} else if cr.inMemCache != nil {
 		return cr.inMemCache.Reset()
 	}
-	client := cr.baseRedisClient.WithContext(ctx)
+	client := cr.baseRedisClient
 	err := client.FlushDB().Err()
 	return err
 }
 
-func (cr *Cache) TTL(key string) time.Duration {
+func (cr *cache) getTTL(key string) time.Duration {
 	if cr.inMemCache != nil || cr.syncmap != nil {
 		return time.Second * 0
 	}
@@ -256,7 +256,7 @@ func (cr *Cache) TTL(key string) time.Duration {
 	return res
 }
 
-func (cr *Cache) pickClient() *redis.Client {
+func (cr *cache) pickClient() *redis.Client {
 	if len(cr.slaveRedisClients) == 0 {
 		return cr.baseRedisClient
 	}
