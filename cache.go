@@ -184,10 +184,16 @@ func (cr *cache) get(key string) (*cachableRet, error) {
 	return &finalObject, nil
 }
 
-func (cr *cache) set(key string, value interface{}) error {
+func (cr *cache) set(key string, value interface{}) (setError error) {
 	if cr.amnesiaChance == 100 {
 		return errors.New("Had Amnesia")
 	}
+	defer func() {
+		if r := recover(); r != nil {
+			//json.Marshal panics under heavy-load which is not repeated with the same values
+			setError = fmt.Errorf("panic in cache-set: %v", r)
+		}
+	}()
 	rawData, err := json.Marshal(value)
 	if err != nil {
 		return err
@@ -206,14 +212,13 @@ func (cr *cache) set(key string, value interface{}) error {
 	}
 	client := cr.baseRedisClient.WithContext(cr.ctx)
 	watcher := cr.Watcher.Start()
-	err = client.SetNX(key, finalData, cr.cacheTTL).Err()
-	if err != nil {
+	setError = client.SetNX(key, finalData, cr.cacheTTL).Err()
+	if setError != nil {
 		watcher.Done(cr.layerName, "set", "error")
 	} else {
 		watcher.Done(cr.layerName, "set", "ok")
 	}
-
-	return err
+	return
 }
 
 func (cr *cache) delete(ctx context.Context, key string) error {
