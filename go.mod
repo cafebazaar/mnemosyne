@@ -1,4 +1,4 @@
-module git.cafebazaar.ir/bazaar/search/mnemosyne
+module github.com/cafebazaar/mnemosyne
 
 go 1.13
 
