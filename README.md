@@ -1,4 +1,4 @@
-# Epimetheus
+# Mnemosyne
 
 Mnemosyne is a multilayer cache which can be configured to use various configurations of [Redis](https://redis.io/) and/or [BigCahce](https://github.com/allegro/bigcache) (an in-memory caching package) with minimum configuration out of the box.
 
