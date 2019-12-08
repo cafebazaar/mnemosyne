@@ -1,6 +1,6 @@
 cloud.google.com/go v0.26.0/go.mod h1:aQUYkXzVsufM+DwF1aE+0xfcU+56JwCaLick0ClmMTw=
-git.cafebazaar.ir/bazaar/search/epimetheus.git v0.0.0-20190924104811-bdbdbd2e7569 h1:KQFxvuunDo1uDmD9jqMIN6Ar/S0+F4VYHZQDy9zxkhk=
-git.cafebazaar.ir/bazaar/search/epimetheus.git v0.0.0-20190924104811-bdbdbd2e7569/go.mod h1:n3ycdl+xhewhvbwfuB+wyywoBv9NhQCMa7nddz1Fcec=
+github.com/cafebazaar/epimetheus v0.0.0-20190924104811-bdbdbd2e7569 h1:KQFxvuunDo1uDmD9jqMIN6Ar/S0+F4VYHZQDy9zxkhk=
+github.com/cafebazaar/epimetheus v0.0.0-20190924104811-bdbdbd2e7569/go.mod h1:n3ycdl+xhewhvbwfuB+wyywoBv9NhQCMa7nddz1Fcec=
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
 github.com/OneOfOne/xxhash v1.2.2/go.mod h1:HSdplMjZKSmBqAxg5vPj2TmRDmfkzw+cTzAElWljhcU=
 github.com/alecthomas/template v0.0.0-20160405071501-a0175ee3bccc/go.mod h1:LOuyumcjzFXgccqObfd/Ljyb9UuFJ6TxHnclSeseNhc=

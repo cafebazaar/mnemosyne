@@ -7,7 +7,7 @@ Mnemosyne is a multilayer cache which can be configured to use various configura
 ### Installing
 
 ```console
-go get -u git.cafebazaar.ir/bazaar/search/mnemosyne
+go get -u github.com/cafebazaar/mnemosyne
 ```
 
 
@@ -101,7 +101,7 @@ a 0 amnesia means that the layers will never miss a data that they actually have
 
 ## Documentation
 
-Documents are available at [https://godoc.org/git.cafebazaar.ir/bazaar/search/mnemosyne](https://godoc.org/git.cafebazaar.ir/bazaar/search/mnemosyne)
+Documents are available at [https://godoc.org/github.com/cafebazaar/mnemosyne](https://godoc.org/github.com/cafebazaar/mnemosyne)
 
 ## Built With
 
@@ -110,11 +110,11 @@ Documents are available at [https://godoc.org/git.cafebazaar.ir/bazaar/search/mn
 
 ## Contributing
 
-Please read [CONTRIBUTING.md](https://git.cafebazaar.ir/bazaar/search/mnemosyne/blob/master/CONTRIBUTING.md) for details on our code of conduct, and the process for submitting pull requests to us.
+Please read [CONTRIBUTING.md](https://github.com/cafebazaar/mnemosyne/blob/master/CONTRIBUTING.md) for details on our code of conduct, and the process for submitting pull requests to us.
 
 ## Versioning
 
-We use [SemVer](http://semver.org/) for versioning. For the versions available, see the [tags on this repository](https://git.cafebazaar.ir/bazaar/search/mnemosyne/tags). 
+We use [SemVer](http://semver.org/) for versioning. For the versions available, see the [tags on this repository](https://github.com/cafebazaar/mnemosyne/tags). 
 
 ## Roadmap
     - Improve documentation
@@ -126,7 +126,7 @@ We use [SemVer](http://semver.org/) for versioning. For the versions available, 
 * **Pedram Teymoori** - *Initial work* - [pedramteymoori](https://github.com/pedramteymoori)
 * **Parsa abdollahi** - *Initial work* - []()
 
-See also the list of [contributors](https://git.cafebazaar.ir/bazaar/search/mnemosyne/-/graphs/master) who participated in this project.
+See also the list of [contributors](https://github.com/cafebazaar/mnemosyne/-/graphs/master) who participated in this project.
 
 ## License
 

@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"git.cafebazaar.ir/bazaar/search/epimetheus.git"
+	"github.com/cafebazaar/epimetheus"
 	"github.com/allegro/bigcache"
 	"github.com/go-redis/redis"
 	"github.com/sirupsen/logrus"
