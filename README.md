@@ -134,6 +134,6 @@ This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md
 
 ## Acknowledgments
 
-* [Sepehr nematollahi](https://www.behance.net/sseeppeehhrr) Epimetheus typography designer
+* [Sepehr nematollahi](https://www.behance.net/sseeppeehhrr) Mnemosyne typography designer
 
 Made with <span class="heart">❤</span> in Cafebazaar search
