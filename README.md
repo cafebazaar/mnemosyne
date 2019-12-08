@@ -126,7 +126,7 @@ We use [SemVer](http://semver.org/) for versioning. For the versions available, 
 * **Pedram Teymoori** - *Initial work* - [pedramteymoori](https://github.com/pedramteymoori)
 * **Parsa abdollahi** - *Initial work* - []()
 
-See also the list of [contributors](https://github.com/cafebazaar/mnemosyne/-/graphs/master) who participated in this project.
+See also the list of [contributors](https://github.com/cafebazaar/Mnemosyne/graphs/contributors) who participated in this project.
 
 ## License
 
