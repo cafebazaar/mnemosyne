@@ -10,7 +10,7 @@ import (
 	"github.com/go-redis/redis"
 	"github.com/pkg/errors"
 
-	"git.cafebazaar.ir/bazaar/search/epimetheus.git"
+	"github.com/cafebazaar/epimetheus"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 )
