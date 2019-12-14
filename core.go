@@ -91,6 +91,7 @@ func newMnemosyneInstance(name string, config *viper.Viper, watcher *epimetheus.
 				config.GetStringSlice(keyPrefix+".slaves"),
 				config.GetInt(keyPrefix+".db"),
 				config.GetDuration(keyPrefix+".ttl"),
+				config.GetDuration(keyPrefix+".idle-timeout"),
 				config.GetInt(keyPrefix+".amnesia"),
 				config.GetBool(keyPrefix+".compression"),
 				commTimer,
