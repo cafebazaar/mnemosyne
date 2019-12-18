@@ -53,12 +53,15 @@ func newCacheRedis(layerName string, addr string, db int, TTL time.Duration, red
 	}
 }
 
-func newCacheClusterRedis(layerName string, masterAddr string, slaveAddrs []string, db int, TTL time.Duration, amnesiaChance int, compressionEnabled bool, watcher *epimetheus.TimerWithCounter) *cache {
+func newCacheClusterRedis(layerName string, masterAddr string, slaveAddrs []string, db int, TTL time.Duration, redisIdleTimeout time.Duration, amnesiaChance int, compressionEnabled bool, watcher *epimetheus.TimerWithCounter) *cache {
 	slaveClients := make([]*redis.Client, len(slaveAddrs))
 	for i, addr := range slaveAddrs {
 		redisOptions := &redis.Options{
 			Addr: addr,
 			DB:   db,
+		}
+		if redisIdleTimeout >= time.Second {
+			redisOptions.IdleTimeout = redisIdleTimeout
 		}
 		slaveClients[i] = redis.NewClient(redisOptions)
 	}
