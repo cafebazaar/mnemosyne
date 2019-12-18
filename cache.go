@@ -9,7 +9,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cafebazaar/epimetheus"
 	"github.com/allegro/bigcache"
 	"github.com/go-redis/redis"
 	"github.com/sirupsen/logrus"
@@ -25,10 +24,9 @@ type cache struct {
 	compressionEnabled bool
 	cacheTTL           time.Duration
 	ctx                context.Context
-	Watcher            *epimetheus.TimerWithCounter
-}
+	watcher            ITimer
 
-func newCacheRedis(layerName string, addr string, db int, TTL time.Duration, redisIdleTimeout time.Duration, amnesiaChance int, compressionEnabled bool, watcher *epimetheus.TimerWithCounter) *cache {
+func newCacheRedis(layerName string, addr string, db int, TTL time.Duration, redisIdleTimeout time.Duration, amnesiaChance int, compressionEnabled bool, watcher ITimer) *cache {
 	redisOptions := &redis.Options{
 		Addr: addr,
 		DB:   db,
@@ -49,11 +47,11 @@ func newCacheRedis(layerName string, addr string, db int, TTL time.Duration, red
 		compressionEnabled: compressionEnabled,
 		cacheTTL:           TTL,
 		ctx:                context.Background(),
-		Watcher:            watcher,
+		watcher:            watcher,
 	}
 }
 
-func newCacheClusterRedis(layerName string, masterAddr string, slaveAddrs []string, db int, TTL time.Duration, redisIdleTimeout time.Duration, amnesiaChance int, compressionEnabled bool, watcher *epimetheus.TimerWithCounter) *cache {
+func newCacheClusterRedis(layerName string, masterAddr string, slaveAddrs []string, db int, TTL time.Duration, redisIdleTimeout time.Duration, amnesiaChance int, compressionEnabled bool, watcher ITimer) *cache {
 	slaveClients := make([]*redis.Client, len(slaveAddrs))
 	for i, addr := range slaveAddrs {
 		redisOptions := &redis.Options{
@@ -84,7 +82,7 @@ func newCacheClusterRedis(layerName string, masterAddr string, slaveAddrs []stri
 		compressionEnabled: compressionEnabled,
 		cacheTTL:           TTL,
 		ctx:                context.Background(),
-		Watcher:            watcher,
+		watcher:            watcher,
 	}
 }
 
@@ -134,7 +132,7 @@ func (cr *cache) withContext(ctx context.Context) *cache {
 		compressionEnabled: cr.compressionEnabled,
 		cacheTTL:           cr.cacheTTL,
 		ctx:                ctx,
-		Watcher:            cr.Watcher,
+		watcher:            cr.watcher,
 	}
 }
 
@@ -159,14 +157,14 @@ func (cr *cache) get(key string) (*cachableRet, error) {
 	} else {
 		var strValue string
 		client := cr.pickClient().WithContext(cr.ctx)
-		watcher := cr.Watcher.Start()
+		startMarker := cr.watcher.Start()
 		strValue, err = client.Get(key).Result()
 		if err == nil {
-			watcher.Done(cr.layerName, "get", "ok")
+			cr.watcher.Done(startMarker, cr.layerName, "get", "ok")
 		} else if err == redis.Nil {
-			watcher.Done(cr.layerName, "get", "miss")
+			cr.watcher.Done(startMarker, cr.layerName, "get", "miss")
 		} else {
-			watcher.Done(cr.layerName, "get", "error")
+			cr.watcher.Done(startMarker, cr.layerName, "get", "error")
 		}
 		rawBytes = []byte(strValue)
 	}
@@ -214,12 +212,12 @@ func (cr *cache) set(key string, value interface{}) (setError error) {
 		return cr.inMemCache.Set(key, finalData)
 	}
 	client := cr.baseRedisClient.WithContext(cr.ctx)
-	watcher := cr.Watcher.Start()
+	startMarker := cr.watcher.Start()
 	setError = client.SetNX(key, finalData, cr.cacheTTL).Err()
 	if setError != nil {
-		watcher.Done(cr.layerName, "set", "error")
+		cr.watcher.Done(startMarker, cr.layerName, "set", "error")
 	} else {
-		watcher.Done(cr.layerName, "set", "ok")
+		cr.watcher.Done(startMarker, cr.layerName, "set", "ok")
 	}
 	return
 }
