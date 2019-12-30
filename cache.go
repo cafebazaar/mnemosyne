@@ -25,6 +25,7 @@ type cache struct {
 	cacheTTL           time.Duration
 	ctx                context.Context
 	watcher            ITimer
+}
 
 func newCacheRedis(layerName string, addr string, db int, TTL time.Duration, redisIdleTimeout time.Duration, amnesiaChance int, compressionEnabled bool, watcher ITimer) *cache {
 	redisOptions := &redis.Options{

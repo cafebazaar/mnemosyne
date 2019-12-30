@@ -21,10 +21,10 @@ type Mnemosyne struct {
 
 // MnemosyneInstance is an instance of a multi-layer cache
 type MnemosyneInstance struct {
-	name        string
-	cacheLayers []*cache
-	caheWatcher ICounter
-	softTTL     time.Duration
+	name         string
+	cacheLayers  []*cache
+	cacheWatcher ICounter
+	softTTL      time.Duration
 }
 
 // ErrCacheMiss is the Error returned when a cache miss happens
@@ -47,7 +47,7 @@ func NewMnemosyne(config *viper.Viper, commTimer ITimer, cacheHitCounter ICounte
 	cacheConfigs := config.GetStringMap("cache")
 	caches := make(map[string]*MnemosyneInstance, len(cacheConfigs))
 	for cacheName := range cacheConfigs {
-		caches[cacheName] = newMnemosyneInstance(cacheName, config, watcher)
+		caches[cacheName] = newMnemosyneInstance(cacheName, config, commTimer, cacheHitCounter)
 	}
 	return &Mnemosyne{
 		childs: caches,
