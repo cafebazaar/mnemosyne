@@ -10,7 +10,6 @@ import (
 	"github.com/go-redis/redis"
 	"github.com/pkg/errors"
 
-	"github.com/cafebazaar/epimetheus"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 )
@@ -22,10 +21,10 @@ type Mnemosyne struct {
 
 // MnemosyneInstance is an instance of a multi-layer cache
 type MnemosyneInstance struct {
-	name        string
-	cacheLayers []*cache
-	watcher     *epimetheus.Epimetheus
-	softTTL     time.Duration
+	name         string
+	cacheLayers  []*cache
+	cacheWatcher ICounter
+	softTTL      time.Duration
 }
 
 // ErrCacheMiss is the Error returned when a cache miss happens
@@ -38,11 +37,17 @@ func (e *ErrCacheMiss) Error() string {
 }
 
 // NewMnemosyne initializes the Mnemosyne object which holds all the cache instances
-func NewMnemosyne(config *viper.Viper, watcher *epimetheus.Epimetheus) *Mnemosyne {
+func NewMnemosyne(config *viper.Viper, commTimer ITimer, cacheHitCounter ICounter) *Mnemosyne {
+	if commTimer == nil {
+		commTimer = NewDummyTimer()
+	}
+	if cacheHitCounter == nil {
+		cacheHitCounter = NewDummyCounter()
+	}
 	cacheConfigs := config.GetStringMap("cache")
 	caches := make(map[string]*MnemosyneInstance, len(cacheConfigs))
 	for cacheName := range cacheConfigs {
-		caches[cacheName] = newMnemosyneInstance(cacheName, config, watcher)
+		caches[cacheName] = newMnemosyneInstance(cacheName, config, commTimer, cacheHitCounter)
 	}
 	return &Mnemosyne{
 		childs: caches,
@@ -54,11 +59,7 @@ func (m *Mnemosyne) Select(cacheName string) *MnemosyneInstance {
 	return m.childs[cacheName]
 }
 
-func newMnemosyneInstance(name string, config *viper.Viper, watcher *epimetheus.Epimetheus) *MnemosyneInstance {
-	if watcher == nil {
-		logrus.Fatal("Epimetheus Watcher should be given to Mnemosyne")
-	}
-	commTimer := watcher.CommTimer
+func newMnemosyneInstance(name string, config *viper.Viper, commTimer ITimer, hitCounter ICounter) *MnemosyneInstance {
 	configKeyPrefix := fmt.Sprintf("cache.%s", name)
 	layerNames := config.GetStringSlice(configKeyPrefix + ".layers")
 	cacheLayers := make([]*cache, len(layerNames))
@@ -108,10 +109,10 @@ func newMnemosyneInstance(name string, config *viper.Viper, watcher *epimetheus.
 		}
 	}
 	return &MnemosyneInstance{
-		name:        name,
-		cacheLayers: cacheLayers,
-		watcher:     watcher,
-		softTTL:     config.GetDuration(configKeyPrefix + ".soft-ttl"),
+		name:         name,
+		cacheLayers:  cacheLayers,
+		cacheWatcher: hitCounter,
+		softTTL:      config.GetDuration(configKeyPrefix + ".soft-ttl"),
 	}
 }
 
@@ -121,12 +122,12 @@ func (mn *MnemosyneInstance) get(ctx context.Context, key string) (*cachableRet,
 	for i, layer := range mn.cacheLayers {
 		result, cacheErrors[i] = layer.withContext(ctx).get(key)
 		if cacheErrors[i] == nil {
-			go mn.watcher.CacheRate.Inc(mn.name, fmt.Sprintf("layer%d", i))
+			go mn.cacheWatcher.Inc(mn.name, fmt.Sprintf("layer%d", i))
 			go mn.fillUpperLayers(key, result, i)
 			return result, nil
 		}
 	}
-	go mn.watcher.CacheRate.Inc(mn.name, "miss")
+	go mn.cacheWatcher.Inc(mn.name, "miss")
 	return nil, &ErrCacheMiss{message: "Miss"} // FIXME: better Error combination
 }
 
@@ -271,10 +272,10 @@ func (mn *MnemosyneInstance) fillUpperLayers(key string, value *cachableRet, lay
 
 func (mn *MnemosyneInstance) monitorDataHotness(age time.Duration) {
 	if age <= mn.softTTL {
-		mn.watcher.CacheRate.Inc(mn.name+"-hotness", "hot")
+		mn.cacheWatcher.Inc(mn.name+"-hotness", "hot")
 	} else if age <= mn.softTTL*2 {
-		mn.watcher.CacheRate.Inc(mn.name+"-hotness", "warm")
+		mn.cacheWatcher.Inc(mn.name+"-hotness", "warm")
 	} else {
-		mn.watcher.CacheRate.Inc(mn.name+"-hotness", "cold")
+		mn.cacheWatcher.Inc(mn.name+"-hotness", "cold")
 	}
 }
