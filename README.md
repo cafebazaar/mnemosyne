@@ -14,7 +14,7 @@ go get -u github.com/cafebazaar/mnemosyne
 ### Initializing a Manager and Selecting a Cache Instance
 
 ```go
-mnemosyneManager := mnemosyne.NewMnemosyne(config, epimetheus)
+mnemosyneManager := mnemosyne.NewMnemosyne(config, nil, nil)
 cacheInstance := mnemosyneManager.select("result-cache")
 ```
 
@@ -41,17 +41,17 @@ cache:
       type: memory
       max-memory: 512
       ttl: 2h
-      amnesia: 100
+      amnesia: 10
       compression: true
     result-gaurdian:
       type: gaurdian
       address: "localhost:6379"
       slaves:
-        - "localhost:6379"
-        - "localhost:6379"
+        - "localhost:6380"
+        - "localhost:6381"
       db: 2
       ttl: 24h
-      amnesia: 100
+      amnesia: 0
       compression: true
   my-user-cache:
     soft-ttl: 2h
@@ -64,12 +64,9 @@ cache:
       ttl: 2h
       amnesia: 0
       compression: true
-    user-gaurdian:
-      type: gaurdian
+    user-redis:
+      type: redis
       address: "localhost:6379"
-      slaves:
-        - "localhost:6379"
-        - "localhost:6379"
       db: 4
       ttl: 24h
       amnesia: 0

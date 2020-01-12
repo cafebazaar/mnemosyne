@@ -1,0 +1,18 @@
+cache:
+  result:
+    soft-ttl: 2h
+    layers:
+      - user-memory
+      - user-redis
+    user-memory:
+      type: memory
+      max-memory: 512
+      ttl: 2h
+      amnesia: 0
+      compression: true
+    user-redis:
+      type: redis
+      db: 4
+      ttl: 24h
+      amnesia: 0
+      compression: true

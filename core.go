@@ -104,7 +104,7 @@ func newMnemosyneInstance(name string, config *viper.Viper, commTimer ITimer, hi
 				config.GetBool(keyPrefix+".compression"),
 			)
 		} else {
-			logrus.Error("Malformed Config: Unknown cache type %s", layerType)
+			logrus.Errorf("Malformed Config: Unknown cache type %s", layerType)
 			return nil
 		}
 	}
