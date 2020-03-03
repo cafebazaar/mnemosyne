@@ -95,6 +95,7 @@ func newCacheInMem(layerName string, maxMem int, TTL time.Duration, amnesiaChanc
 		MaxEntrySize:       500,
 		Verbose:            false,
 		HardMaxCacheSize:   maxMem,
+		CleanWindow:        1 * time.Minute,
 	}
 	cacheInstance, err := bigcache.NewBigCache(opts)
 	if err != nil {
