@@ -1,0 +1,70 @@
+cache:
+  result:
+    soft-ttl: 2h
+    layers:
+      - result-memory
+      - result-gaurdian
+    result-memory:
+      type: memory
+      max-memory: 2560
+      ttl: 3h
+      amnesia: 0
+      compression: true
+    result-gaurdian:
+      type: gaurdian
+      address: "bazaar-octopus-redis.redis:6379"
+      slaves:
+        - "bazaar-octopus-redis-readonly.redis:6379"
+        - "bazaar-octopus-redis-readonly.redis:6379"
+      db: 8
+      ttl: 72h
+      amnesia: 0
+      compression: true
+      idle-timeout: 5s
+
+  package-info:
+    soft-ttl: 2h
+    layers:
+      - pkg-memory
+      - pkg-gaurdian
+    pkg-memory:
+      type: memory
+      max-memory: 512
+      ttl: 3h
+      amnesia: 0
+      compression: true
+    pkg-gaurdian:
+      type: gaurdian
+      address: "bazaar-octopus-redis.redis:6379"
+      slaves:
+        - "bazaar-octopus-redis-readonly.redis:6379"
+        - "bazaar-octopus-redis-readonly.redis:6379"
+      db: 5
+      ttl: 72h
+      amnesia: 0
+      compression: true
+      idle-timeout: 5s
+
+  spell-checker:
+    soft-ttl: 60h
+    layers:
+      - spell-checker-cluster
+    spell-checker-cluster:
+      type: cluster
+      cluster:
+        - address: "bazaar-octopus-redis-one.redis:6379"
+          slaves:
+           - "bazaar-octopus-redis-readonly-one.redis:6379"
+           - "bazaar-octopus-redis-readonly-one.redis:6379"
+        - address: "bazaar-octopus-redis-two.redis:6379"
+          slaves:
+            - "bazaar-octopus-redis-readonly-two.redis:6379"
+            - "bazaar-octopus-redis-readonly-two.redis:6379"
+        - address: "bazaar-octopus-redis-three.redis:6379"
+          slaves:
+            - "bazaar-octopus-redis-readonly-three.redis:6379"
+            - "bazaar-octopus-redis-readonly-three.redis:6379"
+      db: 1
+      ttl: 120h
+      amnesia: 0
+      compression: false
