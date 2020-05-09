@@ -53,6 +53,7 @@ cache:
       ttl: 24h
       amnesia: 0
       compression: true
+
   my-user-cache:
     soft-ttl: 2h
     layers:
@@ -75,25 +76,28 @@ cache:
 
 `soft-ttl` is an instance-wide TTL which when expired will **NOT** remove the data from the instance, but warns that the data is old
 
-Each cache layer can be of types `redis`, `gaurdian`, `memory` or `tiny`. `redis` is used for a single node Redis server, `gaurdian` is used for a master-slave Redis cluster configuration, `memory` uses the BigCache library to provide an efficient and fast in-memory cache, `tiny` uses the native sync.map data structure to store smaller cache values in memory (used for low-write caches).
+Each cache layer can be of the following types:    
+`redis` is used for a single node Redis server.   
+`gaurdian` [Depricated] is used for a master-slave Redis cluster configuration but it's being depricated in favor of `rediscluster`.   
+`rediscluster` is an all-encompassing configuration for both client side sharding as well as cluster Redis (or both at the same time).   
+`memory` uses the BigCache library to provide an efficient and fast in-memory cache.   
+`tiny` uses the native sync.map data structure to store smaller cache values in memory (used for low-write caches).   
 Note: all of the cache types are sync-safe, meaning they can be safely used from simultaneously running goroutines.
 
 #### Common layer configs:
 
 `amnesia` is a stochastic fall-through mechanism which allows for a higher layer to be updated from a lower layer by the way of an artificial cache-miss, 
-a 0 amnesia means that the layers will never miss a data that they actually have, a 10 amnesia means when a key is present in the cache, 90% of the time it is returned but 10% of the time it is ignored and is treated as a cache-miss. a 100 amnesia effectively turns the layer off. (Default: 0)
-
-`compression` is whther the data is compressed before being put into the cache memory. Currently only Zlib compression is supported. (Default: false)
-
-`ttl` is the hard Time To Live for the data in this particular layer, after which the data is expired and is expected to be removed.
+an amnesia value of 0 means that the layers will never miss a data that they actually have, an amnesia value of 10 means when a key is present in the cache, 90% of the time it is returned but 10% of the time it is ignored and is treated as a cache-miss. a 100% amnesia effectively turns the layer off. (Default: 0)    
+`compression` dictates whther the data is compressed before being put into the cache memory. Currently only Zlib compression is supported. (Default: false)    
+`ttl` is the hard Time-To-Live for the data in this particular layer, after which the data is expired and is expected to be removed.
 
 #### Type-spesific layer configs:
 
-`db` [`redis` - `gaurdian`] is the Redis DB number to be used. (Default:0)
-`idle-timeout` [`redis` - `gaurdian`] is the timeout for idle connections to the Redis Server (see Redis documentation) (Default:0 - no timeout)
-`address` [`redis` - `gaurdian`] is the Redis Server's Address (the master's address in case of a cluster)
-`slaves` [`gaurdian`] is a **list** of Redis servers addresses pertaining to the slave nodes.
-`max-memory` [`memory`] is the maximum amount of system memory which can be used by this particular layer.
+`db` [`redis` - `gaurdian`] is the Redis DB number to be used. (Default:0)    
+`idle-timeout` [`redis` - `gaurdian`] is the timeout for idle connections to the Redis Server (see Redis documentation) (Default:0 - no timeout)   
+`address` [`redis` - `gaurdian` - `rediscluster`] is the Redis Server's Address (the master's address in case of a cluster)   
+`slaves` [`gaurdian` - `rediscluster`] is a **list** of Redis servers addresses pertaining to the slave nodes.   
+`max-memory` [`memory`] is the maximum amount of system memory which can be used by this particular layer.   
 
 
 ## Documentation
@@ -119,9 +123,10 @@ We use [SemVer](http://semver.org/) for versioning. For the versions available, 
 
 ## Authors
 
-* **Ramtin Rostami** - *Initial work* - [rrostami](https://github.com/rrostami)
-* **Pedram Teymoori** - *Initial work* - [pedramteymoori](https://github.com/pedramteymoori)
-* **Parsa abdollahi** - *Initial work* - []()
+* **Ramtin Rostami** [rrostami](https://github.com/rrostami) - *Initial work & Maintaining* 
+* **Pedram Teymoori** [pedramteymoori](https://github.com/pedramteymoori) - *Initial work* 
+* **Parsa abdollahi** - *Initial work* 
+* **Ava Abderezaei** [avv-va](https://github.com/avv-va) - *Tests* 
 
 See also the list of [contributors](https://github.com/cafebazaar/Mnemosyne/graphs/contributors) who participated in this project.
 
