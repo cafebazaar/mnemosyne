@@ -141,7 +141,7 @@ func (rc *redisCache) TTL(ctx context.Context, key string) time.Duration {
 
 func (rc *redisCache) pickClient(key string, modification bool) *redis.Client {
 	shard := rc.shardKey(key)
-	if modification {
+	if modification || len(rc.baseClients[shard].slaves) == 0 {
 		return rc.baseClients[shard].master
 	}
 	cl := rand.Intn(len(rc.baseClients[shard].slaves))
