@@ -10,12 +10,10 @@ import (
 )
 
 type inMemoryCache struct {
-	layerName          string
-	base               *bigcache.BigCache
-	amnesiaChance      int
-	compressionEnabled bool
-	cacheTTL           time.Duration
-	watcher            ITimer
+	baseCache
+	base     *bigcache.BigCache
+	cacheTTL time.Duration
+	watcher  ITimer
 }
 
 func NewInMemoryCache(opts *CacheOpts, watcher ITimer) *inMemoryCache {
@@ -33,18 +31,20 @@ func NewInMemoryCache(opts *CacheOpts, watcher ITimer) *inMemoryCache {
 		logrus.Errorf("InMemCache Error: %v", err)
 	}
 	return &inMemoryCache{
-		layerName:          opts.layerName,
-		base:               cacheInstance,
-		amnesiaChance:      opts.amnesiaChance,
-		compressionEnabled: opts.compressionEnabled,
-		cacheTTL:           opts.cacheTTL,
-		watcher:            watcher,
+		baseCache: baseCache{
+			layerName:          opts.layerName,
+			amnesiaChance:      opts.amnesiaChance,
+			compressionEnabled: opts.compressionEnabled,
+		},
+		base:     cacheInstance,
+		cacheTTL: opts.cacheTTL,
+		watcher:  watcher,
 	}
 }
 
 func (mc *inMemoryCache) Get(ctx context.Context, key string) (*cachableRet, error) {
 	if mc.amnesiaChance > rand.Intn(100) {
-		return nil, NewAmnesiaError(mc.amnesiaChance)
+		return nil, newAmnesiaError(mc.amnesiaChance)
 	}
 	rawBytes, err := mc.base.Get(key)
 	if err != nil {
@@ -54,9 +54,6 @@ func (mc *inMemoryCache) Get(ctx context.Context, key string) (*cachableRet, err
 }
 
 func (mc *inMemoryCache) Set(ctx context.Context, key string, value interface{}) error {
-	if mc.amnesiaChance == 100 {
-		return NewAmnesiaError(mc.amnesiaChance)
-	}
 	finalData, err := prepareCachePayload(value, mc.compressionEnabled)
 	if err != nil {
 		return err
@@ -65,9 +62,6 @@ func (mc *inMemoryCache) Set(ctx context.Context, key string, value interface{})
 }
 
 func (mc *inMemoryCache) Delete(ctx context.Context, key string) error {
-	if mc.amnesiaChance == 100 {
-		return NewAmnesiaError(mc.amnesiaChance)
-	}
 	return mc.base.Delete(key)
 }
 

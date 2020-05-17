@@ -5,15 +5,15 @@ import (
 	"strings"
 )
 
-type AmnesiaError struct {
+type amnesiaError struct {
 	Chance int
 }
 
-func (e *AmnesiaError) Error() string {
+func (e *amnesiaError) Error() string {
 	return fmt.Sprintf("Had Amnesia (Chance:%d)", e.Chance)
 }
-func NewAmnesiaError(c int) *AmnesiaError {
-	return &AmnesiaError{Chance: c}
+func newAmnesiaError(c int) *amnesiaError {
+	return &amnesiaError{Chance: c}
 }
 
 func MakeKey(keys ...string) string {

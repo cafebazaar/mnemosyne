@@ -27,12 +27,10 @@ type clusterClient struct {
 }
 
 type redisCache struct {
-	layerName          string
-	baseClients        []*clusterClient
-	amnesiaChance      int
-	compressionEnabled bool
-	cacheTTL           time.Duration
-	watcher            ITimer
+	baseCache
+	baseClients []*clusterClient
+	cacheTTL    time.Duration
+	watcher     ITimer
 }
 
 func makeClient(addr string, db int, idleTimeout time.Duration) *redis.Client {
@@ -53,11 +51,13 @@ func makeClient(addr string, db int, idleTimeout time.Duration) *redis.Client {
 
 func NewShardedClusterRedisCache(opts *CacheOpts, watcher ITimer) *redisCache {
 	rc := &redisCache{
-		layerName:          opts.layerName,
-		amnesiaChance:      opts.amnesiaChance,
-		compressionEnabled: opts.compressionEnabled,
-		cacheTTL:           opts.cacheTTL,
-		watcher:            watcher,
+		baseCache: baseCache{
+			layerName:          opts.layerName,
+			amnesiaChance:      opts.amnesiaChance,
+			compressionEnabled: opts.compressionEnabled,
+		},
+		cacheTTL: opts.cacheTTL,
+		watcher:  watcher,
 	}
 	rc.baseClients = make([]*clusterClient, len(opts.redisOpts.shards))
 	for i, shard := range opts.redisOpts.shards {
@@ -77,7 +77,7 @@ func NewShardedClusterRedisCache(opts *CacheOpts, watcher ITimer) *redisCache {
 
 func (rc *redisCache) Get(ctx context.Context, key string) (*cachableRet, error) {
 	if rc.amnesiaChance > rand.Intn(100) {
-		return nil, NewAmnesiaError(rc.amnesiaChance)
+		return nil, newAmnesiaError(rc.amnesiaChance)
 	}
 	client := rc.pickClient(key, false).WithContext(ctx)
 	startMarker := rc.watcher.Start()
@@ -94,9 +94,6 @@ func (rc *redisCache) Get(ctx context.Context, key string) (*cachableRet, error)
 }
 
 func (rc *redisCache) Set(ctx context.Context, key string, value interface{}) error {
-	if rc.amnesiaChance == 100 {
-		return NewAmnesiaError(rc.amnesiaChance)
-	}
 	finalData, err := prepareCachePayload(value, rc.compressionEnabled)
 	if err != nil {
 		return err
@@ -112,9 +109,6 @@ func (rc *redisCache) Set(ctx context.Context, key string, value interface{}) er
 	return setError
 }
 func (rc *redisCache) Delete(ctx context.Context, key string) error {
-	if rc.amnesiaChance == 100 {
-		return NewAmnesiaError(rc.amnesiaChance)
-	}
 	client := rc.pickClient(key, true).WithContext(ctx)
 	return client.Del(key).Err()
 }

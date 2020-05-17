@@ -30,6 +30,12 @@ type CacheOpts struct {
 	cacheTTL           time.Duration
 }
 
+type baseCache struct {
+	layerName          string
+	amnesiaChance      int
+	compressionEnabled bool
+}
+
 func NewCacheLayer(opts *CacheOpts, watcher ITimer) ICache {
 	layerType := opts.layerType
 	if layerType == "memory" {
