@@ -28,7 +28,7 @@ func NewInMemoryCache(opts *CacheOpts, watcher ITimer) *inMemoryCache {
 	}
 	cacheInstance, err := bigcache.NewBigCache(internalOpts)
 	if err != nil {
-		logrus.Errorf("InMemCache Error: %v", err)
+		logrus.Errorf("InMemCache %s Initialization Error: %v", opts.layerName, err)
 	}
 	return &inMemoryCache{
 		baseCache: baseCache{

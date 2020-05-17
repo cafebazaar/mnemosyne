@@ -29,7 +29,7 @@ func finalizeCacheResponse(rawBytes []byte, compress bool) (*cachableRet, error)
 	var finalObject cachableRet
 	unmarshalErr := json.Unmarshal(finalBytes, &finalObject)
 	if unmarshalErr != nil {
-		return nil, fmt.Errorf("failed to unmarshall cached value : %v", unmarshalErr)
+		return nil, fmt.Errorf("failed to unmarshall cached value : %w", unmarshalErr)
 	}
 	return &finalObject, nil
 }
