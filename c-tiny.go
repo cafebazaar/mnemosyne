@@ -10,11 +10,10 @@ import (
 
 type tinyCache struct {
 	baseCache
-	base    *sync.Map
-	watcher ITimer
+	base *sync.Map
 }
 
-func NewTinyCache(opts *CacheOpts, watcher ITimer) *tinyCache {
+func NewTinyCache(opts *CacheOpts) *tinyCache {
 	data := sync.Map{}
 	return &tinyCache{
 		baseCache: baseCache{
@@ -22,8 +21,7 @@ func NewTinyCache(opts *CacheOpts, watcher ITimer) *tinyCache {
 			amnesiaChance:      opts.amnesiaChance,
 			compressionEnabled: opts.compressionEnabled,
 		},
-		base:    &data,
-		watcher: watcher,
+		base: &data,
 	}
 }
 

@@ -13,10 +13,9 @@ type inMemoryCache struct {
 	baseCache
 	base     *bigcache.BigCache
 	cacheTTL time.Duration
-	watcher  ITimer
 }
 
-func NewInMemoryCache(opts *CacheOpts, watcher ITimer) *inMemoryCache {
+func NewInMemoryCache(opts *CacheOpts) *inMemoryCache {
 	internalOpts := bigcache.Config{
 		Shards:             1024,
 		LifeWindow:         opts.cacheTTL,
@@ -38,7 +37,6 @@ func NewInMemoryCache(opts *CacheOpts, watcher ITimer) *inMemoryCache {
 		},
 		base:     cacheInstance,
 		cacheTTL: opts.cacheTTL,
-		watcher:  watcher,
 	}
 }
 

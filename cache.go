@@ -39,9 +39,9 @@ type baseCache struct {
 func NewCacheLayer(opts *CacheOpts, watcher ITimer) ICache {
 	layerType := opts.layerType
 	if layerType == "memory" {
-		return NewInMemoryCache(opts, watcher)
+		return NewInMemoryCache(opts)
 	} else if layerType == "tiny" {
-		return NewTinyCache(opts, watcher)
+		return NewTinyCache(opts)
 	} else if layerType == "redis" {
 		return NewShardedClusterRedisCache(opts, watcher)
 	}
