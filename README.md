@@ -2,7 +2,7 @@
 
 ![Mnemosyne](.github/logo.png?raw=true)
 
-Mnemosyne is a multilayer cache which can be configured to use various configurations of [Redis](https://redis.io/) and/or [BigCahce](https://github.com/allegro/bigcache) (an in-memory caching package) with minimum configuration out of the box.
+Mnemosyne  (/nɪˈmɒzɪniː, nɪˈmɒsɪniː/; Greek: Μνημοσύνη, pronounced [mnɛːmosýːnɛː]) is a multilayer cache which can be configured to use various configurations of [Redis](https://redis.io/) and/or [BigCache](https://github.com/allegro/bigcache) (an in-memory caching package) with minimum configuration out of the box.
 
 ## Getting Started
 
@@ -105,7 +105,7 @@ Documents are available at [https://godoc.org/github.com/cafebazaar/mnemosyne](h
 ## Built With
 
 * [Redis Go clinet](https://github.com/go-redis/redis) - Redis Client for Golang
-* [BigCahce](https://github.com/allegro/bigcache) - An In-Memory cache library
+* [BigCache](https://github.com/allegro/bigcache) - An In-Memory cache library
 
 ## Contributing
 
@@ -133,6 +133,6 @@ This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md
 
 ## Acknowledgments
 
-* [Sepehr nematollahi](https://www.behance.net/sseeppeehhrr) Mnemosyne typography designer
+* [Sepehr Nematollahi](https://www.behance.net/sseeppeehhrr) Mnemosyne typography designer
 
-Made with <span class="heart">❤</span> in Cafebazaar search
+Made with <span class="heart">❤</span> in Cafebazaar Search Team
