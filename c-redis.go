@@ -100,7 +100,7 @@ func (rc *redisCache) Set(ctx context.Context, key string, value interface{}) er
 	}
 	client := rc.pickClient(key, true).WithContext(ctx)
 	startMarker := rc.watcher.Start()
-	setError := client.SetNX(key, finalData, rc.cacheTTL).Err()
+	setError := client.Set(key, finalData, rc.cacheTTL).Err()
 	if setError != nil {
 		rc.watcher.Done(startMarker, rc.layerName, "set", "error")
 	} else {
