@@ -22,7 +22,7 @@ type Mnemosyne struct {
 // MnemosyneInstance is an instance of a multi-layer cache
 type MnemosyneInstance struct {
 	name         string
-	cacheLayers  []*cache
+	cacheLayers  []ICache
 	cacheWatcher ICounter
 	softTTL      time.Duration
 }
@@ -62,51 +62,38 @@ func (m *Mnemosyne) Select(cacheName string) *MnemosyneInstance {
 func newMnemosyneInstance(name string, config *viper.Viper, commTimer ITimer, hitCounter ICounter) *MnemosyneInstance {
 	configKeyPrefix := fmt.Sprintf("cache.%s", name)
 	layerNames := config.GetStringSlice(configKeyPrefix + ".layers")
-	cacheLayers := make([]*cache, len(layerNames))
+	cacheLayers := make([]ICache, len(layerNames))
 	for i, layerName := range layerNames {
 		keyPrefix := configKeyPrefix + "." + layerName
-		layerType := config.GetString(keyPrefix + ".type")
-		if layerType == "memory" {
-			cacheLayers[i] = newCacheInMem(
-				layerName,
-				config.GetInt(keyPrefix+".max-memory"),
-				config.GetDuration(keyPrefix+".ttl"),
-				config.GetInt(keyPrefix+".amnesia"),
-				config.GetBool(keyPrefix+".compression"),
-			)
-		} else if layerType == "redis" {
-			cacheLayers[i] = newCacheRedis(
-				layerName,
-				config.GetString(keyPrefix+".address"),
-				config.GetInt(keyPrefix+".db"),
-				config.GetDuration(keyPrefix+".ttl"),
-				config.GetDuration(keyPrefix+".idle-timeout"),
-				config.GetInt(keyPrefix+".amnesia"),
-				config.GetBool(keyPrefix+".compression"),
-				commTimer,
-			)
-		} else if layerType == "gaurdian" {
-			cacheLayers[i] = newCacheClusterRedis(
-				layerName,
-				config.GetString(keyPrefix+".address"),
-				config.GetStringSlice(keyPrefix+".slaves"),
-				config.GetInt(keyPrefix+".db"),
-				config.GetDuration(keyPrefix+".ttl"),
-				config.GetDuration(keyPrefix+".idle-timeout"),
-				config.GetInt(keyPrefix+".amnesia"),
-				config.GetBool(keyPrefix+".compression"),
-				commTimer,
-			)
-		} else if layerType == "tiny" {
-			cacheLayers[i] = newCacheTiny(
-				layerName,
-				config.GetInt(keyPrefix+".amnesia"),
-				config.GetBool(keyPrefix+".compression"),
-			)
-		} else {
-			logrus.Errorf("Malformed Config: Unknown cache type %s", layerType)
-			return nil
+		layerOptions := &CacheOpts{
+			layerType:          config.GetString(keyPrefix + ".type"),
+			layerName:          layerName,
+			cacheTTL:           config.GetDuration(keyPrefix + ".ttl"),
+			amnesiaChance:      config.GetInt(keyPrefix + ".amnesia"),
+			compressionEnabled: config.GetBool(keyPrefix + ".compression"),
+			memOpts: MemoryOpts{
+				maxMem: config.GetInt(keyPrefix + ".max-memory"),
+			},
+			redisOpts: RedisOpts{
+				db:          config.GetInt(keyPrefix + ".db"),
+				idleTimeout: config.GetDuration(keyPrefix + ".idle-timeout"),
+				shards:      make([]*RedisClusterAddress, 1),
+			},
 		}
+		if layerOptions.layerType == "redis" {
+			layerOptions.redisOpts.shards[0].MasterAddr = config.GetString(keyPrefix + ".address")
+		} else if layerOptions.layerType == "gaurdian" {
+			// to preserve backward-compatibility
+			layerOptions.redisOpts.shards[0].MasterAddr = config.GetString(keyPrefix + ".address")
+			layerOptions.redisOpts.shards[0].SlaveAddrs = config.GetStringSlice(keyPrefix + ".slaves")
+		} else if layerOptions.layerType == "rediscluster" {
+			err := config.UnmarshalKey(keyPrefix+".cluster", &layerOptions.redisOpts.shards)
+			if err != nil {
+				logrus.WithError(err).Error("Error reading redis cluster config")
+			}
+		}
+		cacheLayers[i] = NewCacheLayer(layerOptions, commTimer)
+
 	}
 	return &MnemosyneInstance{
 		name:         name,
@@ -120,10 +107,12 @@ func (mn *MnemosyneInstance) get(ctx context.Context, key string) (*cachableRet,
 	cacheErrors := make([]error, len(mn.cacheLayers))
 	var result *cachableRet
 	for i, layer := range mn.cacheLayers {
-		result, cacheErrors[i] = layer.withContext(ctx).get(key)
+		result, cacheErrors[i] = layer.Get(ctx, key)
 		if cacheErrors[i] == nil {
-			go mn.cacheWatcher.Inc(mn.name, fmt.Sprintf("layer%d", i))
-			go mn.fillUpperLayers(key, result, i)
+			go func() {
+				mn.fillUpperLayers(key, result, i)
+				mn.cacheWatcher.Inc(mn.name, fmt.Sprintf("layer%d", i))
+			}()
 			return result, nil
 		}
 	}
@@ -168,7 +157,7 @@ func (mn *MnemosyneInstance) GetAndShouldUpdate(ctx context.Context, key string,
 	if err != nil {
 		return false, err
 	}
-	dataAge := time.Now().Sub(cachableObj.Time)
+	dataAge := time.Since(cachableObj.Time)
 	go mn.monitorDataHotness(dataAge)
 	shouldUpdate := dataAge > mn.softTTL
 	return shouldUpdate, nil
@@ -188,7 +177,7 @@ func (mn *MnemosyneInstance) ShouldUpdate(ctx context.Context, key string) (bool
 		return false, errors.New("nil found")
 	}
 
-	shouldUpdate := time.Now().Sub(cachableObj.Time) > mn.softTTL
+	shouldUpdate := time.Since(cachableObj.Time) > mn.softTTL
 
 	return shouldUpdate, nil
 }
@@ -207,7 +196,7 @@ func (mn *MnemosyneInstance) Set(ctx context.Context, key string, value interfac
 	errorStrings := make([]string, len(mn.cacheLayers))
 	haveErorr := false
 	for i, layer := range mn.cacheLayers {
-		cacheErrors[i] = layer.withContext(ctx).set(key, toCache)
+		cacheErrors[i] = layer.Set(ctx, key, toCache)
 		if cacheErrors[i] != nil {
 			errorStrings[i] = cacheErrors[i].Error()
 			haveErorr = true
@@ -220,9 +209,9 @@ func (mn *MnemosyneInstance) Set(ctx context.Context, key string, value interfac
 }
 
 // TTL returns the TTL of the first accessible data instance as well as the layer it was found on
-func (mn *MnemosyneInstance) TTL(key string) (int, time.Duration) {
+func (mn *MnemosyneInstance) TTL(ctx context.Context, key string) (int, time.Duration) {
 	for i, layer := range mn.cacheLayers {
-		dur := layer.getTTL(key)
+		dur := layer.TTL(ctx, key)
 		if dur > 0 {
 			return i, dur
 		}
@@ -236,7 +225,7 @@ func (mn *MnemosyneInstance) Delete(ctx context.Context, key string) error {
 	errorStrings := make([]string, len(mn.cacheLayers))
 	haveErorr := false
 	for i, layer := range mn.cacheLayers {
-		cacheErrors[i] = layer.delete(ctx, key)
+		cacheErrors[i] = layer.Delete(ctx, key)
 		if cacheErrors[i] != nil {
 			errorStrings[i] = cacheErrors[i].Error()
 			haveErorr = true
@@ -251,19 +240,21 @@ func (mn *MnemosyneInstance) Delete(ctx context.Context, key string) error {
 // Flush completly clears a single layer of the cache
 func (mn *MnemosyneInstance) Flush(targetLayerName string) error {
 	for _, layer := range mn.cacheLayers {
-		if layer.layerName == targetLayerName {
-			return layer.clear()
+		if layer.Name() == targetLayerName {
+			return layer.Clear()
 		}
 	}
 	return fmt.Errorf("Layer Named: %v Not Found", targetLayerName)
 }
 
 func (mn *MnemosyneInstance) fillUpperLayers(key string, value *cachableRet, layer int) {
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
 	for i := layer - 1; i >= 0; i-- {
 		if value == nil {
 			continue
 		}
-		err := mn.cacheLayers[i].set(key, *value)
+		err := mn.cacheLayers[i].Set(ctx, key, *value)
 		if err != nil {
 			logrus.Errorf("failed to fill layer %d : %v", i, err)
 		}
