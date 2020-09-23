@@ -215,7 +215,7 @@ func (cr *cache) set(key string, value interface{}) (setError error) {
 	}
 	client := cr.baseRedisClient.WithContext(cr.ctx)
 	startMarker := cr.watcher.Start()
-	setError = client.SetNX(key, finalData, cr.cacheTTL).Err()
+	setError = client.Set(key, finalData, cr.cacheTTL).Err()
 	if setError != nil {
 		cr.watcher.Done(startMarker, cr.layerName, "set", "error")
 	} else {
