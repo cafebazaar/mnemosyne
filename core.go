@@ -81,11 +81,20 @@ func newMnemosyneInstance(name string, config *viper.Viper, commTimer ITimer, hi
 			},
 		}
 		if layerOptions.layerType == "redis" {
-			layerOptions.redisOpts.shards[0].MasterAddr = config.GetString(keyPrefix + ".address")
+			layerOptions.redisOpts.shards = []*RedisClusterAddress{
+				{
+					MasterAddr: config.GetString(keyPrefix + ".address"),
+				},
+			}
 		} else if layerOptions.layerType == "gaurdian" {
 			// to preserve backward-compatibility
-			layerOptions.redisOpts.shards[0].MasterAddr = config.GetString(keyPrefix + ".address")
-			layerOptions.redisOpts.shards[0].SlaveAddrs = config.GetStringSlice(keyPrefix + ".slaves")
+			layerOptions.redisOpts.shards = []*RedisClusterAddress{
+				{
+					MasterAddr: config.GetString(keyPrefix + ".address"),
+					SlaveAddrs: config.GetStringSlice(keyPrefix + ".slaves"),
+				},
+			}
+			layerOptions.layerType = "rediscluster"
 		} else if layerOptions.layerType == "rediscluster" {
 			err := config.UnmarshalKey(keyPrefix+".cluster", &layerOptions.redisOpts.shards)
 			if err != nil {
@@ -93,7 +102,6 @@ func newMnemosyneInstance(name string, config *viper.Viper, commTimer ITimer, hi
 			}
 		}
 		cacheLayers[i] = NewCacheLayer(layerOptions, commTimer)
-
 	}
 	return &MnemosyneInstance{
 		name:         name,
