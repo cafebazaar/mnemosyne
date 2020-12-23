@@ -42,7 +42,7 @@ func NewCacheLayer(opts *CacheOpts, watcher ITimer) ICache {
 		return NewInMemoryCache(opts)
 	} else if layerType == "tiny" {
 		return NewTinyCache(opts)
-	} else if layerType == "redis" {
+	} else if layerType == "redis" || layerType == "rediscluster" {
 		return NewShardedClusterRedisCache(opts, watcher)
 	}
 	logrus.Errorf("Malformed: Unknown cache type %s", layerType)
