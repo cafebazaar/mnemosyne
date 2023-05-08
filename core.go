@@ -139,7 +139,10 @@ func (mn *MnemosyneInstance) Get(ctx context.Context, key string, ref interface{
 	}
 
 	if cachableObj == nil || cachableObj.CachedObject == nil {
-		logrus.Errorf("nil object found in cache %s ! %v", key, cachableObj)
+		logrus.WithFields(logrus.Fields{
+			"key":   key,
+			"value": cachableObj,
+		}).Errorf("nil object found in cache")
 		return errors.New("nil found")
 	}
 
@@ -160,7 +163,10 @@ func (mn *MnemosyneInstance) GetAndShouldUpdate(ctx context.Context, key string,
 	}
 
 	if cachableObj == nil || cachableObj.CachedObject == nil {
-		logrus.Errorf("nil object found in cache %s ! %v", key, cachableObj)
+		logrus.WithFields(logrus.Fields{
+			"key":   key,
+			"value": cachableObj,
+		}).Errorf("nil object found in cache")
 		return false, errors.New("nil found")
 	}
 
@@ -184,7 +190,10 @@ func (mn *MnemosyneInstance) ShouldUpdate(ctx context.Context, key string) (bool
 	}
 
 	if cachableObj == nil || cachableObj.CachedObject == nil {
-		logrus.Errorf("nil object found in cache %s ! %v", key, cachableObj)
+		logrus.WithFields(logrus.Fields{
+			"key":   key,
+			"value": cachableObj,
+		}).Errorf("nil object found in cache")
 		return false, errors.New("nil found")
 	}
 
