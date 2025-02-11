@@ -2,10 +2,12 @@ package mnemosyne
 
 import "time"
 
+// ICounter defines the interface for counting operations
 type ICounter interface {
 	Inc(...string)
 }
 
+// ITimer defines the interface for timing operations
 type ITimer interface {
 	Start() time.Time
 	Done(time.Time, ...string)
@@ -27,7 +29,7 @@ func NewDummyTimer() *DummyTimer {
 func (*DummyTimer) Start() time.Time {
 	return time.Now()
 }
-func (*DummyTimer) Done(a time.Time, b ...string) {
+func (*DummyTimer) Done(time.Time, ...string) {
 
 }
 func (*DummyCounter) Inc(...string) {

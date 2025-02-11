@@ -9,8 +9,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/allegro/bigcache"
-	"github.com/go-redis/redis"
+	"github.com/allegro/bigcache/v3"
+	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
 )
 
@@ -33,11 +33,12 @@ func newCacheRedis(layerName string, addr string, db int, TTL time.Duration, red
 		DB:   db,
 	}
 	if redisIdleTimeout >= time.Second {
-		redisOptions.IdleTimeout = redisIdleTimeout
+		redisOptions.ConnMaxIdleTime = redisIdleTimeout
 	}
 	redisClient := redis.NewClient(redisOptions)
 
-	err := redisClient.Ping().Err()
+	ctx := context.TODO()
+	err := redisClient.Ping(ctx).Err()
 	if err != nil {
 		logrus.WithError(err).Error("error while connecting to Redis")
 	}
@@ -47,7 +48,7 @@ func newCacheRedis(layerName string, addr string, db int, TTL time.Duration, red
 		amnesiaChance:      amnesiaChance,
 		compressionEnabled: compressionEnabled,
 		cacheTTL:           TTL,
-		ctx:                context.Background(),
+		ctx:                ctx,
 		watcher:            watcher,
 	}
 }
@@ -60,7 +61,7 @@ func newCacheClusterRedis(layerName string, masterAddr string, slaveAddrs []stri
 			DB:   db,
 		}
 		if redisIdleTimeout >= time.Second {
-			redisOptions.IdleTimeout = redisIdleTimeout
+			redisOptions.ConnMaxIdleTime = redisIdleTimeout
 		}
 		slaveClients[i] = redis.NewClient(redisOptions)
 	}
@@ -71,7 +72,8 @@ func newCacheClusterRedis(layerName string, masterAddr string, slaveAddrs []stri
 	}
 	redisClient := redis.NewClient(redisOptions)
 
-	if err := redisClient.Ping().Err(); err != nil {
+	ctx := context.TODO()
+	if err := redisClient.Ping(ctx).Err(); err != nil {
 		logrus.WithError(err).Error("error while connecting to Redis Master")
 	}
 
@@ -82,7 +84,7 @@ func newCacheClusterRedis(layerName string, masterAddr string, slaveAddrs []stri
 		amnesiaChance:      amnesiaChance,
 		compressionEnabled: compressionEnabled,
 		cacheTTL:           TTL,
-		ctx:                context.Background(),
+		ctx:                ctx,
 		watcher:            watcher,
 	}
 }
@@ -97,7 +99,8 @@ func newCacheInMem(layerName string, maxMem int, TTL time.Duration, amnesiaChanc
 		HardMaxCacheSize:   maxMem,
 		CleanWindow:        1 * time.Minute,
 	}
-	cacheInstance, err := bigcache.NewBigCache(opts)
+	ctx := context.TODO()
+	cacheInstance, err := bigcache.New(ctx, opts)
 	if err != nil {
 		logrus.Errorf("InMemCache Error: %v", err)
 	}
@@ -107,7 +110,7 @@ func newCacheInMem(layerName string, maxMem int, TTL time.Duration, amnesiaChanc
 		amnesiaChance:      amnesiaChance,
 		compressionEnabled: compressionEnabled,
 		cacheTTL:           TTL,
-		ctx:                context.Background(),
+		ctx:                ctx,
 	}
 }
 
@@ -119,7 +122,7 @@ func newCacheTiny(layerName string, amnesiaChance int, compressionEnabled bool) 
 		amnesiaChance:      amnesiaChance,
 		compressionEnabled: compressionEnabled,
 		cacheTTL:           time.Hour * 9999,
-		ctx:                context.Background(),
+		ctx:                context.TODO(),
 	}
 }
 
@@ -158,12 +161,12 @@ func (cr *cache) get(key string) (*cachableRet, error) {
 		rawBytes, err = cr.inMemCache.Get(key)
 	} else {
 		var strValue string
-		client := cr.pickClient().WithContext(cr.ctx)
+		client := cr.pickClient()
 		startMarker := cr.watcher.Start()
-		strValue, err = client.Get(key).Result()
+		strValue, err = client.Get(cr.ctx, key).Result()
 		if err == nil {
 			cr.watcher.Done(startMarker, cr.layerName, "get", "ok")
-		} else if err == redis.Nil {
+		} else if errors.Is(err, redis.Nil) {
 			cr.watcher.Done(startMarker, cr.layerName, "get", "miss")
 		} else {
 			cr.watcher.Done(startMarker, cr.layerName, "get", "error")
@@ -213,9 +216,9 @@ func (cr *cache) set(key string, value interface{}) (setError error) {
 	} else if cr.inMemCache != nil {
 		return cr.inMemCache.Set(key, finalData)
 	}
-	client := cr.baseRedisClient.WithContext(cr.ctx)
+	client := cr.baseRedisClient
 	startMarker := cr.watcher.Start()
-	setError = client.Set(key, finalData, cr.cacheTTL).Err()
+	setError = client.Set(cr.ctx, key, finalData, cr.cacheTTL).Err()
 	if setError != nil {
 		cr.watcher.Done(startMarker, cr.layerName, "set", "error")
 	} else {
@@ -230,11 +233,12 @@ func (cr *cache) delete(ctx context.Context, key string) error {
 	}
 	if cr.syncmap != nil {
 		cr.syncmap.Delete(key)
+		return nil
 	} else if cr.inMemCache != nil {
 		return cr.inMemCache.Delete(key)
 	}
-	client := cr.baseRedisClient.WithContext(ctx)
-	err := client.Del(key).Err()
+	client := cr.baseRedisClient
+	err := client.Del(ctx, key).Err()
 	return err
 }
 
@@ -244,11 +248,12 @@ func (cr *cache) clear() error {
 	}
 	if cr.syncmap != nil {
 		cr.syncmap = &sync.Map{}
+		return nil
 	} else if cr.inMemCache != nil {
 		return cr.inMemCache.Reset()
 	}
 	client := cr.baseRedisClient
-	err := client.FlushDB().Err()
+	err := client.FlushDB(cr.ctx).Err()
 	return err
 }
 
@@ -256,8 +261,8 @@ func (cr *cache) getTTL(key string) time.Duration {
 	if cr.inMemCache != nil || cr.syncmap != nil {
 		return time.Second * 0
 	}
-	client := cr.pickClient().WithContext(cr.ctx)
-	res, err := client.TTL(key).Result()
+	client := cr.pickClient()
+	res, err := client.TTL(cr.ctx, key).Result()
 	if err != nil {
 		return time.Second * 0
 	}
