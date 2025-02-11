@@ -27,13 +27,19 @@ type cache struct {
 	watcher            ITimer
 }
 
-func newCacheRedis(layerName string, addr string, db int, TTL time.Duration, redisIdleTimeout time.Duration, amnesiaChance int, compressionEnabled bool, watcher ITimer) *cache {
+func newCacheRedis(layerName string, addr string, db int, TTL time.Duration, redisIdleTimeout, redisReadTimeout, redisWriteTimeout time.Duration, amnesiaChance int, compressionEnabled bool, watcher ITimer) *cache {
 	redisOptions := &redis.Options{
 		Addr: addr,
 		DB:   db,
 	}
 	if redisIdleTimeout >= time.Second {
 		redisOptions.ConnMaxIdleTime = redisIdleTimeout
+	}
+	if redisReadTimeout > 0 {
+		redisOptions.ReadTimeout = redisReadTimeout
+	}
+	if redisWriteTimeout > 0 {
+		redisOptions.WriteTimeout = redisWriteTimeout
 	}
 	redisClient := redis.NewClient(redisOptions)
 
@@ -53,7 +59,7 @@ func newCacheRedis(layerName string, addr string, db int, TTL time.Duration, red
 	}
 }
 
-func newCacheClusterRedis(layerName string, masterAddr string, slaveAddrs []string, db int, TTL time.Duration, redisIdleTimeout time.Duration, amnesiaChance int, compressionEnabled bool, watcher ITimer) *cache {
+func newCacheClusterRedis(layerName string, masterAddr string, slaveAddrs []string, db int, TTL time.Duration, redisIdleTimeout, redisReadTimeout, redisWriteTimeout time.Duration, amnesiaChance int, compressionEnabled bool, watcher ITimer) *cache {
 	slaveClients := make([]*redis.Client, len(slaveAddrs))
 	for i, addr := range slaveAddrs {
 		redisOptions := &redis.Options{
@@ -62,6 +68,12 @@ func newCacheClusterRedis(layerName string, masterAddr string, slaveAddrs []stri
 		}
 		if redisIdleTimeout >= time.Second {
 			redisOptions.ConnMaxIdleTime = redisIdleTimeout
+		}
+		if redisReadTimeout > 0 {
+			redisOptions.ReadTimeout = redisReadTimeout
+		}
+		if redisWriteTimeout > 0 {
+			redisOptions.WriteTimeout = redisWriteTimeout
 		}
 		slaveClients[i] = redis.NewClient(redisOptions)
 	}

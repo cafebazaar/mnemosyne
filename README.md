@@ -93,10 +93,11 @@ a 0 amnesia means that the layers will never miss a data that they actually have
 
 `db` [`redis` - `gaurdian`] is the Redis DB number to be used. (Default:0)
 `idle-timeout` [`redis` - `gaurdian`] is the timeout for idle connections to the Redis Server (see Redis documentation) (Default:0 - no timeout)
+`read-timeout` [`redis` - `gaurdian`] is the timeout for read connections to the Redis Server (see Redis documentation) (Default:0 - 3 seconds)
+`write-timeout` [`redis` - `gaurdian`] is the timeout for write connections to the Redis Server (see Redis documentation) (Default:0 - 3 seconds)
 `address` [`redis` - `gaurdian`] is the Redis Server's Address (the master's address in case of a cluster)
 `slaves` [`gaurdian`] is a **list** of Redis servers addresses pertaining to the slave nodes.
 `max-memory` [`memory`] is the maximum amount of system memory which can be used by this particular layer.
-
 
 ## Documentation
 

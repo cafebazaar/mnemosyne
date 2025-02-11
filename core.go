@@ -118,10 +118,10 @@ func createCacheLayer(layerType, layerName, keyPrefix string, config *viper.Vipe
 		return newCacheInMem(layerName, config.GetInt(keyPrefix+".max-memory"), config.GetDuration(keyPrefix+".ttl"), config.GetInt(keyPrefix+".amnesia"), config.GetBool(keyPrefix+".compression")), nil
 
 	case "redis":
-		return newCacheRedis(layerName, config.GetString(keyPrefix+".address"), config.GetInt(keyPrefix+".db"), config.GetDuration(keyPrefix+".ttl"), config.GetDuration(keyPrefix+".idle-timeout"), config.GetInt(keyPrefix+".amnesia"), config.GetBool(keyPrefix+".compression"), commTimer), nil
+		return newCacheRedis(layerName, config.GetString(keyPrefix+".address"), config.GetInt(keyPrefix+".db"), config.GetDuration(keyPrefix+".ttl"), config.GetDuration(keyPrefix+".idle-timeout"), config.GetDuration(keyPrefix+".read-timeout"), config.GetDuration(keyPrefix+".write-timeout"), config.GetInt(keyPrefix+".amnesia"), config.GetBool(keyPrefix+".compression"), commTimer), nil
 
 	case "guardian":
-		return newCacheClusterRedis(layerName, config.GetString(keyPrefix+".address"), config.GetStringSlice(keyPrefix+".slaves"), config.GetInt(keyPrefix+".db"), config.GetDuration(keyPrefix+".ttl"), config.GetDuration(keyPrefix+".idle-timeout"), config.GetInt(keyPrefix+".amnesia"), config.GetBool(keyPrefix+".compression"), commTimer), nil
+		return newCacheClusterRedis(layerName, config.GetString(keyPrefix+".address"), config.GetStringSlice(keyPrefix+".slaves"), config.GetInt(keyPrefix+".db"), config.GetDuration(keyPrefix+".ttl"), config.GetDuration(keyPrefix+".idle-timeout"), config.GetDuration(keyPrefix+".read-timeout"), config.GetDuration(keyPrefix+".write-timeout"), config.GetInt(keyPrefix+".amnesia"), config.GetBool(keyPrefix+".compression"), commTimer), nil
 
 	case "tiny":
 		return newCacheTiny(layerName, config.GetInt(keyPrefix+".amnesia"), config.GetBool(keyPrefix+".compression")), nil
