@@ -120,7 +120,7 @@ func createCacheLayer(layerType, layerName, keyPrefix string, config *viper.Vipe
 	case "redis":
 		return newCacheRedis(layerName, config.GetString(keyPrefix+".address"), config.GetInt(keyPrefix+".db"), config.GetDuration(keyPrefix+".ttl"), config.GetDuration(keyPrefix+".idle-timeout"), config.GetDuration(keyPrefix+".read-timeout"), config.GetDuration(keyPrefix+".write-timeout"), config.GetInt(keyPrefix+".amnesia"), config.GetBool(keyPrefix+".compression"), commTimer), nil
 
-	case "guardian":
+	case "guardian", "gaurdian":
 		return newCacheClusterRedis(layerName, config.GetString(keyPrefix+".address"), config.GetStringSlice(keyPrefix+".slaves"), config.GetInt(keyPrefix+".db"), config.GetDuration(keyPrefix+".ttl"), config.GetDuration(keyPrefix+".idle-timeout"), config.GetDuration(keyPrefix+".read-timeout"), config.GetDuration(keyPrefix+".write-timeout"), config.GetInt(keyPrefix+".amnesia"), config.GetBool(keyPrefix+".compression"), commTimer), nil
 
 	case "tiny":
