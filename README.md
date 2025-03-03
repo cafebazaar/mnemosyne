@@ -38,15 +38,15 @@ cache:
     soft-ttl: 2h 
     layers:   # Arbitary names for each cache layer
       - result-memory
-      - result-gaurdian
+      - result-guardian
     result-memory:
       type: memory
       max-memory: 512
       ttl: 2h
       amnesia: 10
       compression: true
-    result-gaurdian:
-      type: gaurdian
+    result-guardian:
+      type: guardian
       address: "localhost:6379"
       slaves:
         - "localhost:6380"
@@ -77,7 +77,7 @@ cache:
 
 `soft-ttl` is an instance-wide TTL which when expired will **NOT** remove the data from the instance, but warns that the data is old
 
-Each cache layer can be of types `redis`, `gaurdian`, `memory` or `tiny`. `redis` is used for a single node Redis server, `gaurdian` is used for a master-slave Redis cluster configuration, `memory` uses the BigCache library to provide an efficient and fast in-memory cache, `tiny` uses the native sync.map data structure to store smaller cache values in memory (used for low-write caches).
+Each cache layer can be of types `redis`, `guardian`, `memory` or `tiny`. `redis` is used for a single node Redis server, `guardian` is used for a master-slave Redis cluster configuration, `memory` uses the BigCache library to provide an efficient and fast in-memory cache, `tiny` uses the native sync.map data structure to store smaller cache values in memory (used for low-write caches).
 Note: all of the cache types are sync-safe, meaning they can be safely used from simultaneously running goroutines.
 
 #### Common layer configs:
@@ -91,12 +91,18 @@ a 0 amnesia means that the layers will never miss a data that they actually have
 
 #### Type-spesific layer configs:
 
-`db` [`redis` - `gaurdian`] is the Redis DB number to be used. (Default:0)
-`idle-timeout` [`redis` - `gaurdian`] is the timeout for idle connections to the Redis Server (see Redis documentation) (Default:0 - no timeout)
-`read-timeout` [`redis` - `gaurdian`] is the timeout for read connections to the Redis Server (see Redis documentation) (Default:0 - 3 seconds)
-`write-timeout` [`redis` - `gaurdian`] is the timeout for write connections to the Redis Server (see Redis documentation) (Default:0 - 3 seconds)
-`address` [`redis` - `gaurdian`] is the Redis Server's Address (the master's address in case of a cluster)
-`slaves` [`gaurdian`] is a **list** of Redis servers addresses pertaining to the slave nodes.
+`db` [`redis` - `guardian`] is the Redis DB number to be used. (Default:0)
+
+`idle-timeout` [`redis` - `guardian`] is the timeout for idle connections to the Redis Server (see Redis documentation) (Default:0 - no timeout)
+
+`read-timeout` [`redis` - `guardian`] is the timeout for read connections to the Redis Server (see Redis documentation) (Default:0 - 3 seconds)
+
+`write-timeout` [`redis` - `guardian`] is the timeout for write connections to the Redis Server (see Redis documentation) (Default:0 - 3 seconds)
+
+`address` [`redis` - `guardian`] is the Redis Server's Address (the master's address in case of a cluster)
+
+`slaves` [`guardian`] is a **list** of Redis servers addresses pertaining to the slave nodes.
+
 `max-memory` [`memory`] is the maximum amount of system memory which can be used by this particular layer.
 
 ## Documentation
