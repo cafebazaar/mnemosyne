@@ -145,6 +145,34 @@ func (mn *MnemosyneInstance) get(ctx context.Context, key string) (*cachableRet,
 	return nil, ErrNotFound
 }
 
+// get from all layers and replace older data with new one
+func (mn *MnemosyneInstance) getAndSyncLayers(ctx context.Context, key string) (*cachableRet, error) {
+	cacheResults := make([]*cachableRet, len(mn.cacheLayers))
+	var result *cachableRet
+	var resultLayer int
+	for i, layer := range mn.cacheLayers {
+		cacheResults[i], _ = layer.withContext(ctx).get(key)
+		if cacheResults[i] != nil &&
+			(result == nil ||
+				cacheResults[i].Time.After(result.Time)) {
+			result = cacheResults[i]
+			resultLayer = i
+		}
+	}
+	if result == nil {
+		go mn.cacheWatcher.Inc(mn.name, "miss")
+		return nil, &ErrCacheMiss{message: "Miss"} // FIXME: better Error combination
+	}
+	for i, layer := range mn.cacheLayers {
+		if cacheResults[i] == nil || cacheResults[i].Time.Before(result.Time) {
+			go layer.set(key, *result)
+		}
+	}
+
+	go mn.cacheWatcher.Inc(mn.name, fmt.Sprintf("layer%d", resultLayer))
+	return result, nil
+}
+
 // Get retrieves the value for key
 func (mn *MnemosyneInstance) Get(ctx context.Context, key string, ref interface{}) error {
 	cachableObj, err := mn.get(ctx, key)
@@ -196,6 +224,25 @@ func (mn *MnemosyneInstance) ShouldUpdate(ctx context.Context, key string) (bool
 	}
 
 	return time.Since(cachableObj.Time) > mn.softTTL, nil
+}
+
+// ShouldUpdateDeep checks all layers for newer result and will sync older cache layers
+func (mn *MnemosyneInstance) ShouldUpdateDeep(ctx context.Context, key string) (bool, error) {
+	cachableObj, err := mn.getAndSyncLayers(ctx, key)
+	if err == redis.Nil {
+		return true, err
+	} else if err != nil {
+		return false, err
+	}
+
+	if cachableObj == nil || cachableObj.CachedObject == nil {
+		logrus.Errorf("nil object found in cache %s ! %v", key, cachableObj)
+		return false, errors.New("nil found")
+	}
+
+	shouldUpdate := time.Now().Sub(cachableObj.Time) > mn.softTTL
+
+	return shouldUpdate, nil
 }
 
 // Set sets the value for a key in all layers of the cache instance
