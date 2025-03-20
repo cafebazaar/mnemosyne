@@ -5,7 +5,7 @@ go 1.23
 require (
 	github.com/alicebob/miniredis/v2 v2.34.0
 	github.com/allegro/bigcache/v3 v3.1.0
-	github.com/redis/go-redis/v9 v9.7.0
+	github.com/redis/go-redis/v9 v9.7.3
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/viper v1.19.0
 	github.com/stretchr/testify v1.10.0
