@@ -70,3 +70,111 @@ func TestGetAndShouldUpdate(t *testing.T) {
 	assert.Equal(t, testCache, cachedData, "Cached data does not match original")
 	assert.False(t, shouldUpdate, "Should not update immediately after setting")
 }
+
+func TestScanReturnsMatchingKeys(t *testing.T) {
+	cacheInstance := setupTestCache(t)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	keys := map[string]TestType{
+		"result;alpha;1": {Name: "a1"},
+		"result;alpha;2": {Name: "a2"},
+		"result;beta;1":  {Name: "b1"},
+	}
+
+	for key, value := range keys {
+		err := cacheInstance.Set(ctx, key, value)
+		assert.NoError(t, err, "Failed to set cache item %s", key)
+	}
+
+	matchedKeys, err := cacheInstance.Scan(ctx, "*;alpha;*", 100)
+	assert.NoError(t, err, "Failed to scan matching keys")
+	assert.ElementsMatch(t, []string{"result;alpha;1", "result;alpha;2"}, matchedKeys)
+}
+
+func TestDeleteManyDeletesSpecifiedKeys(t *testing.T) {
+	cacheInstance := setupTestCache(t)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	err := cacheInstance.Set(ctx, "result;one;key", TestType{Name: "one"})
+	assert.NoError(t, err)
+	err = cacheInstance.Set(ctx, "result;two;key", TestType{Name: "two"})
+	assert.NoError(t, err)
+	err = cacheInstance.Set(ctx, "result;three;key", TestType{Name: "three"})
+	assert.NoError(t, err)
+
+	err = cacheInstance.DeleteMany(ctx, "result;one;key", "result;two;key")
+	assert.NoError(t, err, "Failed to delete many keys")
+
+	var missing TestType
+	err = cacheInstance.Get(ctx, "result;one;key", &missing)
+	assert.ErrorIs(t, err, mnemosyne.ErrNotFound)
+	err = cacheInstance.Get(ctx, "result;two;key", &missing)
+	assert.ErrorIs(t, err, mnemosyne.ErrNotFound)
+
+	var remaining TestType
+	err = cacheInstance.Get(ctx, "result;three;key", &remaining)
+	assert.NoError(t, err, "Remaining key should still exist")
+	assert.Equal(t, TestType{Name: "three"}, remaining)
+}
+
+func TestDeleteByPatternDeletesMatchingKeys(t *testing.T) {
+	cacheInstance := setupTestCache(t)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	err := cacheInstance.Set(ctx, "result;delete;1", TestType{Name: "d1"})
+	assert.NoError(t, err)
+	err = cacheInstance.Set(ctx, "result;delete;2", TestType{Name: "d2"})
+	assert.NoError(t, err)
+	err = cacheInstance.Set(ctx, "result;keep;1", TestType{Name: "k1"})
+	assert.NoError(t, err)
+
+	deletedCount, err := cacheInstance.DeleteByPattern(ctx, "*;delete;*", 100)
+	assert.NoError(t, err, "Failed to delete by pattern")
+	assert.Equal(t, 2, deletedCount)
+
+	var deleted TestType
+	err = cacheInstance.Get(ctx, "result;delete;1", &deleted)
+	assert.ErrorIs(t, err, mnemosyne.ErrNotFound)
+	err = cacheInstance.Get(ctx, "result;delete;2", &deleted)
+	assert.ErrorIs(t, err, mnemosyne.ErrNotFound)
+
+	var kept TestType
+	err = cacheInstance.Get(ctx, "result;keep;1", &kept)
+	assert.NoError(t, err, "Non-matching key should remain")
+	assert.Equal(t, TestType{Name: "k1"}, kept)
+}
+
+func TestDeleteByPatternNoMatches(t *testing.T) {
+	cacheInstance := setupTestCache(t)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	err := cacheInstance.Set(ctx, "result;keep;key", TestType{Name: "keep"})
+	assert.NoError(t, err)
+
+	deletedCount, err := cacheInstance.DeleteByPattern(ctx, "*;missing;*", 100)
+	assert.NoError(t, err, "DeleteByPattern should not fail when nothing matches")
+	assert.Equal(t, 0, deletedCount)
+
+	var kept TestType
+	err = cacheInstance.Get(ctx, "result;keep;key", &kept)
+	assert.NoError(t, err, "Key should still exist")
+	assert.Equal(t, TestType{Name: "keep"}, kept)
+}
+
+func TestDeleteManyWithNoKeys(t *testing.T) {
+	cacheInstance := setupTestCache(t)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	err := cacheInstance.DeleteMany(ctx)
+	assert.NoError(t, err, "DeleteMany should allow empty input")
+}

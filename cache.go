@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"strings"
 	"sync"
 	"time"
 
@@ -252,6 +253,65 @@ func (cr *cache) delete(ctx context.Context, key string) error {
 	client := cr.baseRedisClient
 	err := client.Del(ctx, key).Err()
 	return err
+}
+
+func (cr *cache) deleteMany(ctx context.Context, keys []string) error {
+	if cr.amnesiaChance == 100 {
+		return errors.New("Had Amnesia")
+	}
+	if len(keys) == 0 {
+		return nil
+	}
+	if cr.syncmap != nil {
+		for _, key := range keys {
+			cr.syncmap.Delete(key)
+		}
+		return nil
+	} else if cr.inMemCache != nil {
+		var errs []string
+		for _, key := range keys {
+			if err := cr.inMemCache.Delete(key); err != nil {
+				errs = append(errs, fmt.Sprintf("%s: %v", key, err))
+			}
+		}
+		if len(errs) > 0 {
+			return fmt.Errorf("cache delete errors: %s", strings.Join(errs, "; "))
+		}
+		return nil
+	}
+	client := cr.baseRedisClient
+	_, err := client.Pipelined(ctx, func(pipe redis.Pipeliner) error {
+		for _, key := range keys {
+			pipe.Del(ctx, key)
+		}
+		return nil
+	})
+	return err
+}
+
+func (cr *cache) scan(ctx context.Context, pattern string, count int64) ([]string, error) {
+	if cr.amnesiaChance == 100 {
+		return nil, errors.New("Had Amnesia")
+	}
+	if count <= 0 {
+		count = 100
+	}
+	if cr.baseRedisClient == nil {
+		return nil, fmt.Errorf("scan is only supported for redis-backed cache layers")
+	}
+
+	client := cr.baseRedisClient
+	iter := client.Scan(ctx, 0, pattern, count).Iterator()
+
+	var matchedKeys []string
+	for iter.Next(ctx) {
+		matchedKeys = append(matchedKeys, iter.Val())
+	}
+	if err := iter.Err(); err != nil {
+		return nil, err
+	}
+
+	return matchedKeys, nil
 }
 
 func (cr *cache) clear() error {

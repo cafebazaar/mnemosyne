@@ -29,7 +29,7 @@ type MnemosyneInstance struct {
 // NewMnemosyne initializes the Mnemosyne object which holds all cache instances
 func NewMnemosyne(config *viper.Viper, commTimer ITimer, cacheHitCounter ICounter) *Mnemosyne {
 	if config == nil {
-		logrus.Panicf("%w: nil config", ErrInvalidConfig)
+		logrus.Panicf("%v: nil config", ErrInvalidConfig)
 	}
 
 	if commTimer == nil {
@@ -41,7 +41,7 @@ func NewMnemosyne(config *viper.Viper, commTimer ITimer, cacheHitCounter ICounte
 
 	cacheConfigs := config.GetStringMap("cache")
 	if len(cacheConfigs) == 0 {
-		logrus.Panicf("%w: no cache configurations found", ErrInvalidConfig)
+		logrus.Panicf("%v: no cache configurations found", ErrInvalidConfig)
 	}
 
 	caches := make(map[string]*MnemosyneInstance, len(cacheConfigs))
@@ -60,7 +60,7 @@ func NewMnemosyne(config *viper.Viper, commTimer ITimer, cacheHitCounter ICounte
 	}
 
 	if len(caches) == 0 {
-		logrus.Panicf("%w: no valid cache instances created", ErrInvalidConfig)
+		logrus.Panicf("%v: no valid cache instances created", ErrInvalidConfig)
 	}
 
 	return &Mnemosyne{
@@ -245,6 +245,71 @@ func (mn *MnemosyneInstance) Delete(ctx context.Context, key string) error {
 		return fmt.Errorf("cache delete errors: %s", strings.Join(errs, "; "))
 	}
 	return nil
+}
+
+// Scan returns all keys that match a Redis glob pattern across the Redis-backed layers.
+func (mn *MnemosyneInstance) Scan(ctx context.Context, pattern string, count int64) ([]string, error) {
+	matched := make([]string, 0)
+	seen := make(map[string]struct{})
+	foundRedisLayer := false
+
+	for _, layer := range mn.cacheLayers {
+		if layer.baseRedisClient == nil {
+			continue
+		}
+		foundRedisLayer = true
+
+		keys, err := layer.scan(ctx, pattern, count)
+		if err != nil {
+			return nil, fmt.Errorf("%s: %w", layer.layerName, err)
+		}
+		for _, key := range keys {
+			if _, exists := seen[key]; exists {
+				continue
+			}
+			seen[key] = struct{}{}
+			matched = append(matched, key)
+		}
+	}
+
+	if !foundRedisLayer {
+		return nil, fmt.Errorf("%w: no redis-backed layers found", ErrLayerNotFound)
+	}
+
+	return matched, nil
+}
+
+// DeleteMany removes the provided keys from every layer of the cache instance.
+func (mn *MnemosyneInstance) DeleteMany(ctx context.Context, keys ...string) error {
+	if len(keys) == 0 {
+		return nil
+	}
+
+	var errs []string
+	for _, layer := range mn.cacheLayers {
+		if err := layer.deleteMany(ctx, keys); err != nil && !errors.Is(err, redis.Nil) {
+			errs = append(errs, fmt.Sprintf("%s: %v", layer.layerName, err))
+		}
+	}
+
+	if len(errs) > 0 {
+		return fmt.Errorf("cache delete errors: %s", strings.Join(errs, "; "))
+	}
+	return nil
+}
+
+// DeleteByPattern scans for matching keys and deletes them from every layer.
+func (mn *MnemosyneInstance) DeleteByPattern(ctx context.Context, pattern string, count int64) (int, error) {
+	keys, err := mn.Scan(ctx, pattern, count)
+	if err != nil {
+		return 0, err
+	}
+
+	if err := mn.DeleteMany(ctx, keys...); err != nil {
+		return 0, err
+	}
+
+	return len(keys), nil
 }
 
 // Flush completely clears a single layer of the cache
