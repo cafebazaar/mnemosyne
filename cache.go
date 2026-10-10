@@ -259,7 +259,7 @@ func (cr *cache) clear() error {
 		return errors.New("Had Amnesia")
 	}
 	if cr.syncmap != nil {
-		cr.syncmap = &sync.Map{}
+		cr.syncmap.Clear()
 		return nil
 	} else if cr.inMemCache != nil {
 		return cr.inMemCache.Reset()
