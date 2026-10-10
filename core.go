@@ -29,7 +29,7 @@ type MnemosyneInstance struct {
 // NewMnemosyne initializes the Mnemosyne object which holds all cache instances
 func NewMnemosyne(config *viper.Viper, commTimer ITimer, cacheHitCounter ICounter) *Mnemosyne {
 	if config == nil {
-		logrus.Panicf("%w: nil config", ErrInvalidConfig)
+		logrus.Panicf("%v: nil config", ErrInvalidConfig)
 	}
 
 	if commTimer == nil {
@@ -41,7 +41,7 @@ func NewMnemosyne(config *viper.Viper, commTimer ITimer, cacheHitCounter ICounte
 
 	cacheConfigs := config.GetStringMap("cache")
 	if len(cacheConfigs) == 0 {
-		logrus.Panicf("%w: no cache configurations found", ErrInvalidConfig)
+		logrus.Panicf("%v: no cache configurations found", ErrInvalidConfig)
 	}
 
 	caches := make(map[string]*MnemosyneInstance, len(cacheConfigs))
@@ -60,7 +60,7 @@ func NewMnemosyne(config *viper.Viper, commTimer ITimer, cacheHitCounter ICounte
 	}
 
 	if len(caches) == 0 {
-		logrus.Panicf("%w: no valid cache instances created", ErrInvalidConfig)
+		logrus.Panicf("%v: no valid cache instances created", ErrInvalidConfig)
 	}
 
 	return &Mnemosyne{
